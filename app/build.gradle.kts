@@ -27,13 +27,11 @@ android {
 
         val TMDB_API_KEY = localProperties.getProperty("TMDB_API_KEY") ?: ""
 
-        // MUST BE INSIDE defaultConfig
         buildConfigField("String", "TMDB_API_KEY", "\"$TMDB_API_KEY\"")
     }
 
     signingConfigs {
         create("release") {
-            // We use safe calls (?.) to prevent crashes if the file is missing on another developer's machine
             val keystorePath = localProperties.getProperty("KEYSTORE_FILE")
             if (keystorePath != null) {
                 storeFile = file(keystorePath)
@@ -46,12 +44,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -75,6 +69,41 @@ android {
         buildConfig = true
         compose = true
     }
+}
+
+abstract class RenameApkTask : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val apkDir: DirectoryProperty
+
+    @get:Input
+    abstract val versionName: Property<String>
+
+    @TaskAction
+    fun rename() {
+        val dir = apkDir.get().asFile
+        dir.listFiles()?.filter { it.extension == "apk" }?.forEach { apk ->
+            val target = File(dir, when {
+                apk.name.contains("arm64-v8a") -> "Chizuki-arm64-v8a.apk"
+                apk.name.contains("armeabi-v7a") -> "Chizuki-armeabi-v7a.apk"
+                else -> "Chizuki-${versionName.get()}.apk"
+            })
+            apk.renameTo(target)
+            if (!target.exists() && apk.exists()) {
+                apk.copyTo(target, overwrite = true)
+                apk.delete()
+            }
+        }
+    }
+}
+
+val renameReleaseApk = tasks.register<RenameApkTask>("renameReleaseApk") {
+    apkDir = layout.buildDirectory.dir("outputs/apk/release")
+    versionName = android.defaultConfig.versionName
+}
+
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    finalizedBy(renameReleaseApk)
 }
 
 dependencies {
