@@ -424,7 +424,7 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF191933), Color(0xFF0A0A14), Color(0xFF000000))
+                    colors = listOf(Color(0xFF0A1628), Color(0xFF080E1A), Color(0xFF040810))
                 )
             )
     ) {

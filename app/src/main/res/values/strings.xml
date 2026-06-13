@@ -3,6 +3,7 @@
     <string name="app_name">Chizuki</string>
     <string name="search_hint">Search movies &amp; TV shows…</string>
     <string name="season">Season</string>
+    <string name="app_tagline">Stream under the moon</string>
     <string name="episode">Episode</string>
     <string name="play">Play</string>
     <string name="cancel">Cancel</string>

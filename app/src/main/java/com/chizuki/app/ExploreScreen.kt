@@ -290,7 +290,7 @@ fun FeaturedCarousel(
                             modifier = Modifier.height(48.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1A1A1A),
+                                containerColor = Color(0xFF1A2235),
                                 contentColor = Color.White
                             )
                         ) {

@@ -110,11 +110,11 @@ fun SearchScreen(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xfff472a1),
+                focusedBorderColor = Color(0xFF64B5F6),
                 unfocusedBorderColor = Color.Gray,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                cursorColor = Color(0xfff472a1)
+                cursorColor = Color(0xFF64B5F6)
             ),
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
@@ -135,7 +135,7 @@ fun SearchScreen(
                 } else if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = Color(0xfff472a1),
+                        color = Color(0xFF64B5F6),
                         strokeWidth = 2.dp
                     )
                 }
@@ -144,7 +144,7 @@ fun SearchScreen(
                 Icon(
                     imageVector = Icons.Filled.Search,
                     contentDescription = null,
-                    tint = Color(0xfff472a1)
+                    tint = Color(0xFF64B5F6)
                 )
             }
         )
@@ -154,7 +154,7 @@ fun SearchScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xfff472a1))
+                CircularProgressIndicator(color = Color(0xFF64B5F6))
             }
         } else if (searchResults.isEmpty() && searchQuery.isNotEmpty()) {
             Box(

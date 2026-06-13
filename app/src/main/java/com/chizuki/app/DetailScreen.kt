@@ -70,9 +70,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 
-private val CardColor = Color(0xFF1A1A1A)
-private val TextSecondary = Color(0xFF9CA3AF)
-private val Accent = Color(0xFFf472a1)
+private val CardColor = Color(0xFF1A2235)
+private val TextSecondary = Color(0xFF8B949E)
+private val Accent = Color(0xFF64B5F6)
 private val StarColor = Color(0xFFF59E0B)
 private val GreenDot = Color(0xFF4CAF50)
 
@@ -85,10 +85,10 @@ data class ListStatus(
 
 val listStatuses = listOf(
     ListStatus("continue", "Watching", Icons.Default.PlayArrow, Color(0xFF4CAF50)),
-    ListStatus("planning", "Planning", Icons.Default.Bookmark, Color(0xFF2196F3)),
-    ListStatus("completed", "Completed", Icons.Default.Check, Color(0xFF9C27B0)),
-    ListStatus("onhold", "On Hold", Icons.Default.Pause, Color(0xFFFF9800)),
-    ListStatus("dropped", "Dropped", Icons.Default.Delete, Color(0xFFF44336))
+    ListStatus("planning", "Planning", Icons.Default.Bookmark, Color(0xFF64B5F6)),
+    ListStatus("completed", "Completed", Icons.Default.Check, Color(0xFF81C784)),
+    ListStatus("onhold", "On Hold", Icons.Default.Pause, Color(0xFFFFB74D)),
+    ListStatus("dropped", "Dropped", Icons.Default.Delete, Color(0xFFE57373))
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -147,7 +147,7 @@ fun DetailScreen(
         ModalBottomSheet(
             onDismissRequest = { showEpisodeSelector = false },
             sheetState = sheetState,
-            containerColor = Color(0xFF1A1A1A)
+            containerColor = Color(0xFF1A2235)
         ) {
             Column(
                 modifier = Modifier

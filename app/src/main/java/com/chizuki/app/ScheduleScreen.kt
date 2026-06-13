@@ -107,7 +107,7 @@ fun ScheduleScreen(
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color.White)
+                CircularProgressIndicator(color = Color(0xFF64B5F6))
             }
         } else {
             LazyColumn(

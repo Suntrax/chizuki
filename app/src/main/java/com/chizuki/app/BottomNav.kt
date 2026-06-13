@@ -48,7 +48,7 @@ fun ChizukiBottomNav(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accent = Color(0xfff472a1)
+    val accent = Color(0xFF64B5F6)
 
     val tabs = listOf(
         NavTab(0, Icons.Filled.DateRange, "Schedule"),
@@ -69,7 +69,7 @@ fun ChizukiBottomNav(
                 .height(48.dp)
                 .shadow(12.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f))
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF141414).copy(alpha = 0.88f))
+                .background(Color(0xFF121826).copy(alpha = 0.88f))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically

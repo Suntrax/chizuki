@@ -90,11 +90,11 @@ fun HomeScreen(
     }
 
     val sections = listOf(
-        ListSection("continue", "Watching", Icons.Default.PlayArrow, Color(0xFFf472a1)) { continueWatching },
-        ListSection("planning", "Planning to Watch", Icons.Default.Bookmark, Color(0xFFf472a1)) { planningToWatch },
-        ListSection("completed", "Completed", Icons.Default.Check, Color(0xFFf472a1)) { completed },
-        ListSection("onhold", "On Hold", Icons.Default.Pause, Color(0xFFf472a1)) { onHold },
-        ListSection("dropped", "Dropped", Icons.Default.Delete, Color(0xFFf472a1)) { dropped }
+        ListSection("continue", "Watching", Icons.Default.PlayArrow, Color(0xFF64B5F6)) { continueWatching },
+        ListSection("planning", "Planning to Watch", Icons.Default.Bookmark, Color(0xFF64B5F6)) { planningToWatch },
+        ListSection("completed", "Completed", Icons.Default.Check, Color(0xFF64B5F6)) { completed },
+        ListSection("onhold", "On Hold", Icons.Default.Pause, Color(0xFF64B5F6)) { onHold },
+        ListSection("dropped", "Dropped", Icons.Default.Delete, Color(0xFF64B5F6)) { dropped }
     )
 
     LazyColumn(
@@ -270,7 +270,7 @@ private fun AnimatedListCard(
             .height(220.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2235)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -313,7 +313,7 @@ private fun AnimatedListCard(
                         .fillMaxWidth()
                         .height(3.dp)
                         .align(Alignment.BottomCenter),
-                    color = Color(0xfff472a1),
+                    color = Color(0xFF64B5F6),
                     trackColor = Color.Gray.copy(alpha = 0.3f)
                 )
             }
