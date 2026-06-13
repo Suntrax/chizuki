@@ -32,6 +32,17 @@ A modern Android streaming app for discovering and watching movies and TV shows.
   <img src="./screenshots/player.png" width="91%" />
 </p>
 
+## Building from source
+
+1. Clone the repo
+2. Create a `local.properties` file in the project root with your TMDB API key:
+   ```properties
+   TMDB_API_KEY=your_tmdb_api_key_here
+   ```
+3. Open in Android Studio or build with `./gradlew assembleRelease`
+
+> **Note:** `local.properties` is gitignored. Release signing keys are also configured via this file. Copy the format from `app/build.gradle.kts`.
+
 ## Requirements
 
 - Android 8.0+ (API 28+)
