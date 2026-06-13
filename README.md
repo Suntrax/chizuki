@@ -4,7 +4,7 @@ A modern Android streaming app for discovering and watching movies and TV shows.
 
 ![Platform](https://img.shields.io/badge/Platform-Android-green.svg)
 ![Language](https://img.shields.io/badge/Language-Kotlin-blue.svg)
-![MinSDK](https://img.shields.io/badge/MinSDK-28-orange.svg)
+![MinSDK](https://img.shields.io/badge/MinSDK-26-orange.svg)
 
 ## Features
 
