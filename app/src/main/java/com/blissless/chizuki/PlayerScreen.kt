@@ -2,9 +2,11 @@ package com.blissless.chizuki
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -101,6 +103,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -113,6 +116,52 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+
+private const val PLAYER_TAG = "Chizuki/Player"
+
+/**
+ * The proxy at ballerinacappuccinalovestungtungtungsahur.com checks the
+ * Origin and Referer of the incoming request to prevent hotlinking — it
+ * only allows requests that appear to come from player.vidlove.cc.
+ *
+ * The `?headers=...` query param on the URL contains the UPSTREAM headers
+ * (for goodstream.cc) and must be left intact on the URL — the proxy reads
+ * them and forwards them upstream. We must NOT send those upstream headers
+ * to the proxy itself.
+ *
+ * This function returns the headers we should send TO the proxy:
+ *   - Origin: https://player.vidlove.cc
+ *   - Referer: https://player.vidlove.cc/
+ *   - User-Agent: a browser UA (from the upstream headers if present, else default)
+ *   - Accept: star-slash-star (all media types)
+ */
+private fun buildProxyHeaders(rawUrl: String): Map<String, String> {
+    val upstreamHeaders = try {
+        val uri = Uri.parse(rawUrl)
+        val headersJson = uri.getQueryParameter("headers") ?: ""
+        if (headersJson.isNotBlank()) {
+            val parsed = org.json.JSONObject(headersJson)
+            val map = mutableMapOf<String, String>()
+            for (key in parsed.keys()) {
+                map[key] = parsed.getString(key)
+            }
+            map
+        } else emptyMap()
+    } catch (e: Exception) {
+        Log.e(PLAYER_TAG, "buildProxyHeaders: failed to parse upstream headers", e)
+        emptyMap()
+    }
+
+    // The proxy-facing headers must impersonate the vidlove player.
+    return mapOf(
+        "Origin" to "https://player.vidlove.cc",
+        "Referer" to "https://player.vidlove.cc/",
+        "User-Agent" to (upstreamHeaders["User-Agent"]
+            ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"),
+        "Accept" to "*/*",
+        "Accept-Language" to "en-US,en;q=0.9"
+    )
+}
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -193,7 +242,14 @@ fun PlayerScreen(
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }
 
-    val exoPlayer = remember(context) {
+    // Rebuild the player when videoUrl changes — the headers we need to send
+    // to the proxy vary per stream.
+    val exoPlayer = remember(context, videoUrl) {
+        Log.d(PLAYER_TAG, "Building ExoPlayer for videoUrl (len=${videoUrl.length})")
+
+        val headers = buildProxyHeaders(videoUrl)
+        Log.d(PLAYER_TAG, "proxy-facing headers: $headers")
+
         val bufferAheadMs = 30000
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -204,16 +260,23 @@ fun PlayerScreen(
             )
             .build()
 
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setConnectTimeoutMs(20000)
-            .setReadTimeoutMs(20000)
-            .setDefaultRequestProperties(mapOf(
-                "Accept" to "*/*",
-                "Accept-Language" to "en-US,en;q=0.9",
-                "Origin" to "https://vidlink.pro",
-                "Referer" to "https://vidlink.pro/"
-            ))
-            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        val userAgent = headers["User-Agent"]
+            ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        Log.d(PLAYER_TAG, "using User-Agent: $userAgent")
+
+        // Use OkHttp instead of HttpURLConnection — HttpURLConnection on
+        // some Android versions silently drops Origin and Referer headers
+        // (they're "restricted" headers), which causes 403 from the proxy.
+        // OkHttp sends all headers properly.
+        val okHttpClient = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .followRedirects(true)
+            .build()
+
+        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+            .setUserAgent(userAgent)
+            .setDefaultRequestProperties(headers)
 
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(
@@ -227,11 +290,13 @@ fun PlayerScreen(
                         isPlaying = playing
                         if (playing) {
                             hasPlaybackStarted = true
+                            Log.d(PLAYER_TAG, "playback started")
                         }
                     }
 
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         isBuffering = playbackState == Player.STATE_BUFFERING
+                        Log.d(PLAYER_TAG, "playback state changed: ${when (playbackState) { Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "BUFFERING"; Player.STATE_READY -> "READY"; Player.STATE_ENDED -> "ENDED"; else -> "?" }}")
                         if (playbackState == Player.STATE_READY) {
                             hasError = false
                             playbackError = null
@@ -245,6 +310,7 @@ fun PlayerScreen(
                     }
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        Log.e(PLAYER_TAG, "ExoPlayer error", error)
                         hasError = true
                         playbackError = error.message ?: "Unknown playback error"
                         showControls = true
@@ -270,6 +336,15 @@ fun PlayerScreen(
         }
     }
 
+    // Release the ExoPlayer when the composable leaves the composition or
+    // when videoUrl changes (a new player is created via remember(context, videoUrl)).
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            Log.d(PLAYER_TAG, "releasing ExoPlayer")
+            exoPlayer.release()
+        }
+    }
+
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -290,6 +365,11 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(videoUrl) {
+        // While the extension is resolving the stream URL, videoUrl will be
+        // blank — don't feed an empty URI to ExoPlayer.
+        if (videoUrl.isBlank()) return@LaunchedEffect
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): preparing player")
+
         hasError = false
         playbackError = null
         hasRestoredPosition = false
@@ -298,9 +378,16 @@ fun PlayerScreen(
         bufferedPosition = 0L
         maxBufferedPosition = 0L
 
+        // Use the full URL as-is — the ?headers=... param must stay on the
+        // URL because the proxy reads it to know what headers to send upstream.
+        // We send the proxy-facing headers (Origin/Referer = player.vidlove.cc)
+        // via the DataSource, which are set in the exoPlayer builder above.
+        Log.d(PLAYER_TAG, "setting media item: $videoUrl")
+
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(videoUrl)
-            .setMimeType(MimeTypes.APPLICATION_M3U8)
+        // Don't force the mime type — let ExoPlayer infer it from the URL.
+        // The extension can return either .m3u8 (HLS) or .mp4 (progressive).
 
         exoPlayer.setMediaItem(mediaItemBuilder.build())
         exoPlayer.prepare()

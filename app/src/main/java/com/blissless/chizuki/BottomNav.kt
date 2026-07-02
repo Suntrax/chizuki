@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,7 +54,8 @@ fun ChizukiBottomNav(
     val tabs = listOf(
         NavTab(0, Icons.Filled.DateRange, "Schedule"),
         NavTab(1, Icons.Filled.Explore, "Explore"),
-        NavTab(2, Icons.Filled.Home, "Home")
+        NavTab(2, Icons.Filled.Home, "Home"),
+        NavTab(3, Icons.Filled.Settings, "Settings")
     )
 
     Box(
@@ -65,7 +67,7 @@ fun ChizukiBottomNav(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth(0.72f)
+                .fillMaxWidth(0.62f)
                 .height(48.dp)
                 .shadow(12.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f))
                 .clip(RoundedCornerShape(24.dp))

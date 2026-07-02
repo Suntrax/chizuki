@@ -4,9 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
@@ -206,107 +205,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val viewModel: MainViewModel = viewModel()
-            ChizukiApp(viewModel, onScrapeUrl = { url, callback ->
-                scrapeM3u8Url(url, callback)
-            })
+            ChizukiApp(viewModel)
         }
-    }
-
-    private val adDomains = listOf(
-        "googlesyndication.com", "doubleclick.net", "googleadservices.com",
-        "googleads.g.doubleclick.net", "ads.google.com", "pagead2.googlesyndication.com",
-        "adservice.google.com", "taboola.com", "outbrain.com", "popads.net",
-        "popmyads.com", "propellerads.com", "adcash.com", "realsrv.com",
-        "exosrv.com", "JuicyAds.com", "adtng.com", "dtghtv.com",
-        "btrll.com", "criteo.com", "advertising.com", "adnxs.com",
-        "rubiconproject.com", "pubmatic.com", "openx.net",
-        "casalemedia.com", "moatads.com"
-    )
-
-    @SuppressLint("SetJavaScriptEnabled")
-    fun scrapeM3u8Url(url: String, onResult: (String?) -> Unit) {
-        android.util.Log.d("Chizuki", "scrapeM3u8Url: Loading URL in WebView: $url")
-
-        val foundM3u8Url = java.util.concurrent.atomic.AtomicReference<String?>(null)
-        val scraperLock = java.util.concurrent.atomic.AtomicBoolean(false)
-
-        val webView = WebView(this)
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadsImagesAutomatically = false
-            mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(
-                view: WebView?,
-                request: android.webkit.WebResourceRequest?
-            ): android.webkit.WebResourceResponse? {
-                val requestUrl = request?.url?.toString() ?: return super.shouldInterceptRequest(view, request)
-
-                for (adDomain in adDomains) {
-                    if (requestUrl.contains(adDomain, ignoreCase = true)) {
-                        return android.webkit.WebResourceResponse(
-                            "text/plain",
-                            "utf-8",
-                            java.io.ByteArrayInputStream("".toByteArray())
-                        )
-                    }
-                }
-
-                if (requestUrl.contains(".m3u8", ignoreCase = true)) {
-                    android.util.Log.d("Chizuki", "scrapeM3u8Url: Intercepted m3u8 request: $requestUrl")
-
-                    val isHighQuality = requestUrl.contains("MTA4MA", ignoreCase = true) ||
-                            requestUrl.contains("1080", ignoreCase = true) ||
-                            requestUrl.contains("master", ignoreCase = true) ||
-                            requestUrl.contains("720", ignoreCase = true)
-
-                    if (isHighQuality && foundM3u8Url.get() == null && scraperLock.compareAndSet(false, true)) {
-                        foundM3u8Url.set(requestUrl)
-                        android.util.Log.d("Chizuki", "scrapeM3u8Url: Found valid m3u8 URL: $requestUrl")
-                        onResult(requestUrl)
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            try { webView.destroy() } catch (e: Exception) { }
-                        }
-                    }
-                }
-
-                return super.shouldInterceptRequest(view, request)
-            }
-
-            override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
-                val requestUrl = request?.url?.toString() ?: return false
-                for (adDomain in adDomains) {
-                    if (requestUrl.contains(adDomain, ignoreCase = true)) {
-                        return true
-                    }
-                }
-                return false
-            }
-        }
-
-        val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
-        val timeoutRunnable = Runnable {
-            android.util.Log.w("Chizuki", "scrapeM3u8Url: Timeout, fallback URL: ${foundM3u8Url.get() ?: url}")
-            if (foundM3u8Url.get() == null) {
-                onResult(url)
-            }
-            try {
-                webView.destroy()
-            } catch (e: Exception) { }
-        }
-        timeoutHandler.postDelayed(timeoutRunnable, 30000)
-
-        webView.loadUrl(url)
     }
 }
 
 @Composable
-fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit) -> Unit) {
+fun ChizukiApp(viewModel: MainViewModel) {
     var selectedTab by remember { mutableIntStateOf(1) }
     var listRefreshKey by remember { mutableIntStateOf(0) }
     var detailRefreshKey by remember { mutableIntStateOf(0) }
@@ -385,15 +290,26 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
         currentVideoUrl = null
         isPlayerActive = true
         val item = currentContent!!
-        val vidlinkUrl = if (item.type == "tv") {
-            "https://vidlink.pro/tv/${item.id}/$currentSeason/$currentEpisode"
-        } else {
-            "https://vidlink.pro/movie/${item.id}"
-        }
-        android.util.Log.d("Chizuki", "onPlayContent: Playing ${item.name} (${item.type}), URL: $vidlinkUrl")
-        onScrapeUrl(vidlinkUrl) { url ->
-            android.util.Log.d("Chizuki", "onPlayContent: Received URL: $url")
-            currentVideoUrl = url
+        android.util.Log.d("Chizuki", "onPlayContent: Resolving stream for ${item.name} (${item.type})")
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val url = viewModel.fetchStreamUrl(
+                title = item.name,
+                season = if (item.type == "tv") currentSeason else null,
+                episode = if (item.type == "tv") currentEpisode else null
+            )
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (url == null) {
+                    isPlayerActive = false
+                    Toast.makeText(
+                        context,
+                        "No stream available. Select an extension in Settings.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    android.util.Log.d("Chizuki", "onPlayContent: Got URL from extension: $url")
+                    currentVideoUrl = url
+                }
+            }
         }
     }
 
@@ -459,6 +375,7 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
                             searchFocus = true
                         }
                     )
+                    3 -> SettingsScreen(viewModel = viewModel)
                 }
             }
         }
@@ -500,7 +417,7 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
                         val existingItem = continueList.getOrNull(index)
                         val existingDuration = existingItem?.progressDuration ?: 0L
                         val actualDuration = if (dur > 0) dur else existingDuration
-                        
+
                         if (index != -1) {
                             // Update existing item
                             if (position > 0) {
@@ -512,7 +429,7 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
                                 )
                             }
                         } else if (position > 0) {
-                            // Add to continue watching list if not already there
+                            // Immediately add to Continue Watching on first position save
                             continueList.add(0, item.copy(
                                 progressPosition = position,
                                 progressDuration = actualDuration,
@@ -542,13 +459,18 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
                     }
                     currentVideoUrl = null
                     val item = currentContent ?: return@PlayerScreen
-                    val vidlinkUrl = if (item.type == "tv") {
-                        "https://vidlink.pro/tv/${item.id}/$currentSeason/$currentEpisode"
-                    } else {
-                        "https://vidlink.pro/movie/${item.id}"
-                    }
-                    onScrapeUrl(vidlinkUrl) { url ->
-                        currentVideoUrl = url
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val url = viewModel.fetchStreamUrl(
+                            title = item.name,
+                            season = if (item.type == "tv") currentSeason else null,
+                            episode = if (item.type == "tv") currentEpisode else null
+                        )
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            currentVideoUrl = url
+                            if (url == null) {
+                                Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 },
                 onNextEpisode = {
@@ -565,25 +487,35 @@ fun ChizukiApp(viewModel: MainViewModel, onScrapeUrl: (String, (String?) -> Unit
                     }
                     currentVideoUrl = null
                     val item = currentContent ?: return@PlayerScreen
-                    val vidlinkUrl = if (item.type == "tv") {
-                        "https://vidlink.pro/tv/${item.id}/$currentSeason/$currentEpisode"
-                    } else {
-                        "https://vidlink.pro/movie/${item.id}"
-                    }
-                    onScrapeUrl(vidlinkUrl) { url ->
-                        currentVideoUrl = url
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val url = viewModel.fetchStreamUrl(
+                            title = item.name,
+                            season = if (item.type == "tv") currentSeason else null,
+                            episode = if (item.type == "tv") currentEpisode else null
+                        )
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            currentVideoUrl = url
+                            if (url == null) {
+                                Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 },
                 onPlaybackError = {
                     currentVideoUrl = null
                     val item = currentContent ?: return@PlayerScreen
-                    val vidlinkUrl = if (item.type == "tv") {
-                        "https://vidlink.pro/tv/${item.id}/$currentSeason/$currentEpisode"
-                    } else {
-                        "https://vidlink.pro/movie/${item.id}"
-                    }
-                    onScrapeUrl(vidlinkUrl) { url ->
-                        currentVideoUrl = url
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val url = viewModel.fetchStreamUrl(
+                            title = item.name,
+                            season = if (item.type == "tv") currentSeason else null,
+                            episode = if (item.type == "tv") currentEpisode else null
+                        )
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            currentVideoUrl = url
+                            if (url == null) {
+                                Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 },
                 onClose = {

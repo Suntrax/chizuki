@@ -9,6 +9,15 @@
     <!-- Keep screen on while playing video -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Required for Android 11+ to discover installed extension packages
+         via queryBroadcastReceivers(). Without this block, package visibility
+         is restricted and no extensions will be found. -->
+    <queries>
+        <intent>
+            <action android:name="com.blissless.movieclient.EXTENSION_BEACON" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

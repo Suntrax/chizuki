@@ -115,6 +115,95 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _upcomingTV = MutableStateFlow<List<ContentItem>>(emptyList())
     private val _upcomingTVShows = MutableStateFlow<List<AiringShow>>(emptyList())
 
+    // ---- Settings, extensions, and update-check state ----
+    private val settingsManager = SettingsManager(application)
+    private val extensionManager = ExtensionManager(application)
+    private val updateManager = UpdateManager(application)
+
+    private val _checkUpdatesOnStart = MutableStateFlow(settingsManager.getCheckUpdatesOnStart())
+    val checkUpdatesOnStart: StateFlow<Boolean> = _checkUpdatesOnStart.asStateFlow()
+
+    private val _installedExtensions = MutableStateFlow<List<InstalledExtension>>(emptyList())
+    val installedExtensions: StateFlow<List<InstalledExtension>> = _installedExtensions.asStateFlow()
+
+    private val _selectedExtensionAuthority = MutableStateFlow(settingsManager.getSelectedExtensionAuthority())
+    val selectedExtensionAuthority: StateFlow<String?> = _selectedExtensionAuthority.asStateFlow()
+
+    private val _pendingUpdate = MutableStateFlow<GitHubRelease?>(null)
+    val pendingUpdate: StateFlow<GitHubRelease?> = _pendingUpdate.asStateFlow()
+
+    private val _isCheckingUpdates = MutableStateFlow(false)
+    val isCheckingUpdates: StateFlow<Boolean> = _isCheckingUpdates.asStateFlow()
+
+    val currentVersionName: StateFlow<String> = MutableStateFlow(updateManager.getCurrentVersionName())
+
+    init {
+        if (settingsManager.getCheckUpdatesOnStart()) {
+            checkForUpdatesSilently()
+        }
+    }
+
+    fun setCheckUpdatesOnStart(enabled: Boolean) {
+        settingsManager.setCheckUpdatesOnStart(enabled)
+        _checkUpdatesOnStart.value = enabled
+    }
+
+    fun discoverExtensions() {
+        _installedExtensions.value = extensionManager.discover()
+    }
+
+    fun selectExtension(authority: String?) {
+        android.util.Log.d("Chizuki/ViewModel", "selectExtension: authority=$authority")
+        settingsManager.setSelectedExtensionAuthority(authority)
+        _selectedExtensionAuthority.value = authority
+        android.util.Log.d("Chizuki/ViewModel", "selectExtension: saved to prefs, stateFlow now = ${_selectedExtensionAuthority.value}")
+    }
+
+    /**
+     * Resolve a stream URL for the given title through the selected extension.
+     * Returns null if no extension is selected or the extension returns no URL.
+     */
+    fun fetchStreamUrl(title: String, season: Int? = null, episode: Int? = null): String? {
+        val authority = _selectedExtensionAuthority.value
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: title=$title season=$season episode=$episode")
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: selected authority = $authority")
+
+        if (authority == null) {
+            android.util.Log.e("Chizuki/ViewModel", "fetchStreamUrl: NO EXTENSION SELECTED — returning null")
+            return null
+        }
+
+        val url = extensionManager.fetchStreamUrl(authority, title, season, episode)
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: result = $url")
+        return url
+    }
+
+    fun checkForUpdatesSilently() {
+        viewModelScope.launch {
+            _isCheckingUpdates.value = true
+            try {
+                _pendingUpdate.value = updateManager.checkSilently()
+            } finally {
+                _isCheckingUpdates.value = false
+            }
+        }
+    }
+
+    fun checkForUpdatesManually() {
+        viewModelScope.launch {
+            _isCheckingUpdates.value = true
+            try {
+                _pendingUpdate.value = updateManager.checkSilently()
+            } finally {
+                _isCheckingUpdates.value = false
+            }
+        }
+    }
+
+    fun openReleasesPage() {
+        updateManager.openReleasesPage()
+    }
+
     val searchResults: StateFlow<List<ContentItem>> = _searchResults.asStateFlow()
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     val error: StateFlow<String?> = _error.asStateFlow()
