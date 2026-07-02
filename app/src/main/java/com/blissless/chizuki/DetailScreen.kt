@@ -1,4 +1,4 @@
-package com.chizuki.app
+package com.blissless.chizuki
 
 import android.content.Intent
 import android.net.Uri

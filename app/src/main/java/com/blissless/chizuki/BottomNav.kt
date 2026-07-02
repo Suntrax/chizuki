@@ -1,4 +1,4 @@
-package com.chizuki.app
+package com.blissless.chizuki
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState

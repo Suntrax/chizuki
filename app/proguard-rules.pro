@@ -3,7 +3,7 @@
 # in the Android SDK tools.
 
 # Keep data classes
--keep class com.chizuki.app.ContentItem { *; }
+-keep class com.blissless.chizuki.ContentItem { *; }
 
 # Keep WebView JavaScript interface methods
 -keepclassmembers class * {
@@ -54,7 +54,7 @@
 -dontwarn retrofit2.**
 
 # Keep Gson models
--keep class com.chizuki.app.** { *; }
+-keep class com.blissless.chizuki.** { *; }
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }

@@ -13,17 +13,15 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.chizuki.app"
+    namespace = "com.blissless.chizuki"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.chizuki.app"
+        applicationId = "com.blissless.chizuki"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val TMDB_API_KEY = localProperties.getProperty("TMDB_API_KEY") ?: ""
 

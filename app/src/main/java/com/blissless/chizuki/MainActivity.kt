@@ -1,4 +1,4 @@
-package com.chizuki.app
+package com.blissless.chizuki
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -69,15 +69,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.chizuki.app.MainViewModel
-import com.chizuki.app.ContentItem
-import com.chizuki.app.ContentDetails
-import com.chizuki.app.ExploreScreen
-import com.chizuki.app.HomeScreen
-import com.chizuki.app.ScheduleScreen
-import com.chizuki.app.SearchScreen
-import com.chizuki.app.DetailScreen
-import com.chizuki.app.ChizukiBottomNav
+import com.blissless.chizuki.MainViewModel
+import com.blissless.chizuki.ContentItem
+import com.blissless.chizuki.ContentDetails
+import com.blissless.chizuki.ExploreScreen
+import com.blissless.chizuki.HomeScreen
+import com.blissless.chizuki.ScheduleScreen
+import com.blissless.chizuki.SearchScreen
+import com.blissless.chizuki.DetailScreen
+import com.blissless.chizuki.ChizukiBottomNav
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import kotlinx.coroutines.GlobalScope

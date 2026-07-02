@@ -1,4 +1,4 @@
-package com.chizuki.app
+package com.blissless.chizuki
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel

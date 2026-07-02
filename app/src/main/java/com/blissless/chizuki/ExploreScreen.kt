@@ -1,4 +1,4 @@
-package com.chizuki.app
+package com.blissless.chizuki
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -64,8 +64,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.chizuki.app.MainViewModel
-import com.chizuki.app.ContentItem
+import com.blissless.chizuki.MainViewModel
+import com.blissless.chizuki.ContentItem
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import kotlinx.coroutines.Job
