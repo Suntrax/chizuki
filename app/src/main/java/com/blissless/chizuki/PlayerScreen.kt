@@ -102,7 +102,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -195,6 +194,7 @@ fun PlayerScreen(
     var playbackError by remember { mutableStateOf<String?>(null) }
     var hasError by remember { mutableStateOf(false) }
     var hasPlaybackStarted by remember { mutableStateOf(false) }
+    var errorRetryCount by remember { mutableStateOf(0) }
 
     var resizeModeIndex by remember { mutableIntStateOf(0) }
     val resizeModes = listOf(
@@ -242,13 +242,26 @@ fun PlayerScreen(
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }
 
-    // Rebuild the player when videoUrl changes — the headers we need to send
-    // to the proxy vary per stream.
-    val exoPlayer = remember(context, videoUrl) {
-        Log.d(PLAYER_TAG, "Building ExoPlayer for videoUrl (len=${videoUrl.length})")
+    // Create the ExoPlayer ONCE — don't recreate it when videoUrl changes.
+    // Recreating the player on every URL change caused a race condition
+    // where the old player's release interfered with the new player's
+    // startup (first playback attempt would error, second would succeed).
+    //
+    // Instead, we keep a stable ExoPlayer + a mutable OkHttpDataSource.Factory
+    // reference. When videoUrl changes, we update the factory's headers AND
+    // set a new media item on the same player — no player recreation.
+    val dataSourceFactoryRef = remember {
+        OkHttpDataSource.Factory(
+            okhttp3.OkHttpClient.Builder()
+                .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .followRedirects(true)
+                .build()
+        )
+    }
 
-        val headers = buildProxyHeaders(videoUrl)
-        Log.d(PLAYER_TAG, "proxy-facing headers: $headers")
+    val exoPlayer = remember(context) {
+        Log.d(PLAYER_TAG, "Building ExoPlayer (one-time) with OkHttpDataSource")
 
         val bufferAheadMs = 30000
         val loadControl = DefaultLoadControl.Builder()
@@ -260,27 +273,9 @@ fun PlayerScreen(
             )
             .build()
 
-        val userAgent = headers["User-Agent"]
-            ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-        Log.d(PLAYER_TAG, "using User-Agent: $userAgent")
-
-        // Use OkHttp instead of HttpURLConnection — HttpURLConnection on
-        // some Android versions silently drops Origin and Referer headers
-        // (they're "restricted" headers), which causes 403 from the proxy.
-        // OkHttp sends all headers properly.
-        val okHttpClient = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .followRedirects(true)
-            .build()
-
-        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-            .setUserAgent(userAgent)
-            .setDefaultRequestProperties(headers)
-
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory)
+                DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactoryRef)
             )
             .setLoadControl(loadControl)
             .build()
@@ -310,10 +305,25 @@ fun PlayerScreen(
                     }
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        Log.e(PLAYER_TAG, "ExoPlayer error", error)
-                        hasError = true
-                        playbackError = error.message ?: "Unknown playback error"
-                        showControls = true
+                        Log.e(PLAYER_TAG, "ExoPlayer error (retryCount=$errorRetryCount)", error)
+                        // Log the root cause for debugging
+                        var cause = error.cause
+                        while (cause != null) {
+                            Log.e(PLAYER_TAG, "  caused by: ${cause::class.java.name}: ${cause.message}")
+                            cause = cause.cause
+                        }
+
+                        // Only auto-retry once; if it fails again, show the error UI.
+                        if (errorRetryCount < 1) {
+                            errorRetryCount++
+                            Log.d(PLAYER_TAG, "auto-retrying playback (attempt ${errorRetryCount + 1})")
+                            onPlaybackError?.invoke()
+                        } else {
+                            Log.d(PLAYER_TAG, "max retries reached, showing error UI")
+                            hasError = true
+                            playbackError = error.message ?: "Unknown playback error"
+                            showControls = true
+                        }
                     }
                 })
             }
@@ -336,8 +346,9 @@ fun PlayerScreen(
         }
     }
 
-    // Release the ExoPlayer when the composable leaves the composition or
-    // when videoUrl changes (a new player is created via remember(context, videoUrl)).
+    // Release the ExoPlayer when the composable leaves the composition.
+    // Since the player is now created once (remember(context), not
+    // remember(context, videoUrl)), this only fires when the screen closes.
     DisposableEffect(exoPlayer) {
         onDispose {
             Log.d(PLAYER_TAG, "releasing ExoPlayer")
@@ -375,19 +386,28 @@ fun PlayerScreen(
         hasRestoredPosition = false
         isBuffering = true
         hasPlaybackStarted = false
+        errorRetryCount = 0
         bufferedPosition = 0L
         maxBufferedPosition = 0L
 
+        // Update the DataSource factory's headers for this specific URL.
+        // The factory is mutable — calling setDefaultRequestProperties again
+        // replaces the old headers with the new ones for all subsequent
+        // requests (manifest + segment loads).
+        val headers = buildProxyHeaders(videoUrl)
+        val userAgent = headers["User-Agent"]
+            ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        Log.d(PLAYER_TAG, "updating factory headers: ${headers.keys}")
+        dataSourceFactoryRef
+            .setUserAgent(userAgent)
+            .setDefaultRequestProperties(headers)
+
         // Use the full URL as-is — the ?headers=... param must stay on the
         // URL because the proxy reads it to know what headers to send upstream.
-        // We send the proxy-facing headers (Origin/Referer = player.vidlove.cc)
-        // via the DataSource, which are set in the exoPlayer builder above.
         Log.d(PLAYER_TAG, "setting media item: $videoUrl")
 
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(videoUrl)
-        // Don't force the mime type — let ExoPlayer infer it from the URL.
-        // The extension can return either .m3u8 (HLS) or .mp4 (progressive).
 
         exoPlayer.setMediaItem(mediaItemBuilder.build())
         exoPlayer.prepare()
@@ -507,7 +527,16 @@ fun PlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(if (hasPlaybackStarted) 1f else 0f),
-            update = { view -> 
+            update = { view ->
+                // Re-wire the player whenever a new ExoPlayer instance is
+                // created (happens when videoUrl changes, since we use
+                // remember(context, videoUrl)). Without this, the PlayerView
+                // keeps pointing at the old (released) player and only audio
+                // plays — no video.
+                if (view.player !== exoPlayer) {
+                    Log.d(PLAYER_TAG, "update: re-wiring PlayerView to new ExoPlayer instance")
+                    view.player = exoPlayer
+                }
                 view.resizeMode = resizeModes[resizeModeIndex].first
             }
         )
