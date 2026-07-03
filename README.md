@@ -1,6 +1,6 @@
 # Chizuki
 
-A modern Android streaming app for discovering and watching movies and TV shows.
+A modern Android tracking app for discovering movies and TV shows.
 
 ![Platform](https://img.shields.io/badge/Platform-Android-green.svg)
 ![Language](https://img.shields.io/badge/Language-Kotlin-blue.svg)
