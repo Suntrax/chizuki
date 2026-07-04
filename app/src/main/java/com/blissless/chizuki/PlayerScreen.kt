@@ -660,7 +660,7 @@ fun PlayerScreen(
                                 DropdownMenu(
                                     expanded = showSpeedMenu,
                                     onDismissRequest = { showSpeedMenu = false },
-                                    modifier = Modifier.background(Color(0xFF1A2235))
+                                    modifier = Modifier.background(DarkCard)
                                 ) {
                                     speedOptions.forEach { speed ->
                                         DropdownMenuItem(
@@ -804,10 +804,10 @@ fun PlayerScreen(
                     }
 
                 if (hasError && playbackError != null) {
-                    Card(
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2235)),
-                        shape = RoundedCornerShape(8.dp)
+                        Card(
+                            modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkCard),
+                            shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Error, null, tint = Color.Red, modifier = Modifier.size(32.dp))

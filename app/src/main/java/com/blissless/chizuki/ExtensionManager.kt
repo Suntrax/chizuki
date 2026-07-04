@@ -15,7 +15,7 @@ import org.json.JSONObject
  * app label starts with "Chizuki: ". Each extension exposes a
  * ContentProvider at authority `"<packageName>.provider"` that accepts:
  *
- *   content://<authority>/scrape?title=<movie name>[&season=N&episode=M]
+ *   content://<authority>/scrape?title=<movie name>[&tmdbId=N&mediaType=movie|tv&season=N&episode=M]
  *
  * and returns a single-row cursor with a "data" column containing JSON:
  *   {"Auto": ["https://...m3u8..."]}    on success
@@ -65,6 +65,10 @@ class ExtensionManager(private val context: Context) {
      * @param authority  the extension's ContentProvider authority
      *                   (e.g. "com.blissless.movies67.provider")
      * @param title      the movie/show title
+     * @param tmdbId     the TMDB ID of the content (optional — extensions can
+     *                   use it to skip their own TMDB search)
+     * @param mediaType  "movie" or "tv" (optional — lets extensions construct
+     *                   the correct embed URL without guessing)
      * @param season     optional season number (TV only)
      * @param episode    optional episode number (TV only)
      * @return the first stream URL on success, null on failure or empty result
@@ -72,18 +76,22 @@ class ExtensionManager(private val context: Context) {
     fun fetchStreamUrl(
         authority: String,
         title: String,
+        tmdbId: Int? = null,
+        mediaType: String? = null,
         season: Int? = null,
         episode: Int? = null
     ): String? {
         val builder = Uri.parse("content://$authority/$PATH_SCRAPE")
             .buildUpon()
             .appendQueryParameter("title", title)
+        if (tmdbId != null) builder.appendQueryParameter("tmdbId", tmdbId.toString())
+        if (mediaType != null) builder.appendQueryParameter("mediaType", mediaType)
         if (season != null) builder.appendQueryParameter("season", season.toString())
         if (episode != null) builder.appendQueryParameter("episode", episode.toString())
         val uri = builder.build()
 
         Log.d(TAG, "fetchStreamUrl: authority=$authority")
-        Log.d(TAG, "fetchStreamUrl: title=$title season=$season episode=$episode")
+        Log.d(TAG, "fetchStreamUrl: title=$title tmdbId=$tmdbId mediaType=$mediaType season=$season episode=$episode")
         Log.d(TAG, "fetchStreamUrl: query URI=$uri")
 
         var cursor: Cursor? = null

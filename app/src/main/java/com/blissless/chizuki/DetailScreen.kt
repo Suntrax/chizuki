@@ -2,6 +2,7 @@ package com.blissless.chizuki
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -37,6 +39,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,12 +74,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 
-private val CardColor = Color(0xFF1A2235)
-private val TextSecondary = Color(0xFF8B949E)
-private val Accent = Color(0xFF64B5F6)
-private val StarColor = Color(0xFFF59E0B)
-private val GreenDot = Color(0xFF4CAF50)
-
 data class ListStatus(
     val key: String,
     val label: String,
@@ -84,11 +82,11 @@ data class ListStatus(
 )
 
 val listStatuses = listOf(
-    ListStatus("continue", "Watching", Icons.Default.PlayArrow, Color(0xFF4CAF50)),
-    ListStatus("planning", "Planning", Icons.Default.Bookmark, Color(0xFF64B5F6)),
-    ListStatus("completed", "Completed", Icons.Default.Check, Color(0xFF81C784)),
-    ListStatus("onhold", "On Hold", Icons.Default.Pause, Color(0xFFFFB74D)),
-    ListStatus("dropped", "Dropped", Icons.Default.Delete, Color(0xFFE57373))
+    ListStatus("continue", "Watching", Icons.Default.PlayArrow, StatusWatching),
+    ListStatus("planning", "Planning", Icons.Default.Bookmark, StatusPlanning),
+    ListStatus("completed", "Completed", Icons.Default.Check, StatusCompleted),
+    ListStatus("onhold", "On Hold", Icons.Default.Pause, StatusPaused),
+    ListStatus("dropped", "Dropped", Icons.Default.Delete, StatusDropped)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -147,7 +145,7 @@ fun DetailScreen(
         ModalBottomSheet(
             onDismissRequest = { showEpisodeSelector = false },
             sheetState = sheetState,
-            containerColor = Color(0xFF1A2235)
+            containerColor = DarkCard
         ) {
             Column(
                 modifier = Modifier
@@ -168,7 +166,7 @@ fun DetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = { showEpisodeSelector = false }) {
-                        Icon(Icons.Filled.Close, "Close", tint = Color.White)
+                        Icon(Icons.Filled.Close, "Close", tint = SilverLight)
                     }
                 }
 
@@ -183,14 +181,14 @@ fun DetailScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(if (isSel) Accent else CardColor)
+                                    .background(if (isSel) BlueAccent else DarkCard)
                                     .clickable { selectedSeason = season }
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Season $season",
-                                    color = if (isSel) Color.White else TextSecondary,
+                                    color = if (isSel) Color.White else SilverDark,
                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 13.sp
                                 )
@@ -215,7 +213,7 @@ fun DetailScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isCurrent) Accent.copy(alpha = 0.1f) else Color.Transparent)
+                                .background(if (isCurrent) BlueAccent.copy(alpha = 0.1f) else Color.Transparent)
                                 .clickable {
                                     selectedEpisode = ep
                                     showEpisodeSelector = false
@@ -228,12 +226,12 @@ fun DetailScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(if (isCurrent) Accent else CardColor),
+                                    .background(if (isCurrent) BlueAccent else DarkCard),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "$ep",
-                                    color = if (isCurrent) Color.White else TextSecondary,
+                                    color = if (isCurrent) Color.White else SilverDark,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
@@ -243,7 +241,7 @@ fun DetailScreen(
 
                             Text(
                                 text = "Episode $ep",
-                                color = if (isCurrent) Accent else Color.White,
+                                color = if (isCurrent) BlueAccent else Color.White,
                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 14.sp,
                                 modifier = Modifier.weight(1f)
@@ -253,7 +251,7 @@ fun DetailScreen(
                                 Icon(
                                     Icons.Filled.PlayArrow,
                                     contentDescription = "Playing",
-                                    tint = Accent,
+                                    tint = BlueAccent,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -267,7 +265,7 @@ fun DetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(DarkBackground)
     ) {
         Column(
             modifier = Modifier
@@ -277,7 +275,7 @@ fun DetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(320.dp)
+                    .aspectRatio(2f / 3f)
             ) {
                 AndroidView(
                     factory = { ctx ->
@@ -300,9 +298,8 @@ fun DetailScreen(
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.Black.copy(alpha = 0.3f),
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.8f)
+                                    DarkBackground.copy(alpha = 0.8f)
                                 )
                             )
                         )
@@ -322,168 +319,184 @@ fun DetailScreen(
                     )
                 }
 
-                Box(
+                Column(
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Accent.copy(alpha = 0.9f))
-                        .clickable {
-                            if (isSeries) showEpisodeSelector = true
-                            else onPlayClick(1, 1)
-                        },
-                    contentAlignment = Alignment.Center
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
                 ) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = if (isSeries) "Episodes" else "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                if (isSeries) {
-                    val savedSeason = content.progressSeason.takeIf { it > 0 } ?: 1
-                    val savedEpisode = content.progressEpisode.takeIf { it > 0 } ?: 1
-                    val epCount = details?.seasons?.find { it.seasonNumber == savedSeason }?.episodeCount ?: 12
                     Text(
-                        text = "S$savedSeason:E$savedEpisode${if (epCount > 0) " / $epCount" else ""}",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                        text = content.name,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    if (currentStatus != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(currentStatus.color)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = currentStatus.label,
+                                color = currentStatus.color,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
                 if (details != null) {
-                    Row(
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkCard),
+                        border = BorderStroke(0.5.dp, GlassStroke)
                     ) {
-                        if (details.posterUrl != null) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    android.widget.ImageView(ctx).apply {
-                                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            if (details.posterUrl != null) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        android.widget.ImageView(ctx).apply {
+                                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(width = 80.dp, height = 120.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    update = { iv ->
+                                        Glide.with(context)
+                                            .load(details.posterUrl)
+                                            .transition(DrawableTransitionOptions.withCrossFade())
+                                            .into(iv)
                                     }
-                                },
-                                modifier = Modifier
-                                    .size(width = 90.dp, height = 135.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                update = { iv ->
-                                    Glide.with(context)
-                                        .load(details.posterUrl)
-                                        .transition(DrawableTransitionOptions.withCrossFade())
-                                        .into(iv)
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = content.name,
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                val year = details.releaseDate.takeIf { it.length >= 4 }?.take(4)
-                                if (!year.isNullOrEmpty()) {
-                                    Text(year, color = TextSecondary, fontSize = 13.sp)
-                                    Text("•", color = TextSecondary, fontSize = 13.sp)
-                                }
-
-                                if (details.runtime > 0) {
-                                    val hours = details.runtime / 60
-                                    val mins = details.runtime % 60
-                                    Text(
-                                        text = if (hours > 0) "${hours}h ${mins}m" else "${mins}m",
-                                        color = TextSecondary,
-                                        fontSize = 13.sp
-                                    )
-                                    Text("•", color = TextSecondary, fontSize = 13.sp)
-                                }
-
-                                if (details.voteAverage > 0) {
-                                    Icon(
-                                        Icons.Filled.Star,
-                                        contentDescription = null,
-                                        tint = StarColor,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = String.format("%.1f", details.voteAverage),
-                                        color = StarColor,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
                             }
 
-                            if (details.genres.isNotEmpty()) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = content.name,
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    details.genres.take(3).forEach { genre ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(Accent.copy(alpha = 0.15f))
-                                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                                        ) {
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = String.format("%.1f", details.voteAverage),
+                                            color = Color(0xFFFFD700),
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text("Rating", color = SilverDark, fontSize = 11.sp)
+                                    }
+                                    if (isSeries && details.numberOfSeasons > 0) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(
-                                                text = genre,
-                                                color = Accent,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
+                                                text = "${details.numberOfSeasons}",
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
+                                            Text("Seasons", color = SilverDark, fontSize = 11.sp)
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "${details.numberOfEpisodes}",
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text("Episodes", color = SilverDark, fontSize = 11.sp)
+                                        }
+                                    } else {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            val hours = details.runtime / 60
+                                            val mins = details.runtime % 60
+                                            Text(
+                                                text = if (hours > 0) "${hours}h ${mins}m" else "${mins}m",
+                                                color = Color.White,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text("Runtime", color = SilverDark, fontSize = 11.sp)
                                         }
                                     }
                                 }
-                            }
 
-                            if (details.status.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (details.status == "Released" || details.status == "Returning Series") GreenDot
-                                                else TextSecondary
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = details.status,
-                                        color = TextSecondary,
-                                        fontSize = 12.sp
-                                    )
+                                if (details.genres.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        details.genres.take(3).forEach { genre ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .border(BorderStroke(0.5.dp, GlassStroke), RoundedCornerShape(50))
+                                                    .background(DarkSurface)
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = genre,
+                                                    color = SilverDark,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (details.status.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (details.status == "Released" || details.status == "Returning Series") StatusCompleted
+                                                    else SilverDark
+                                                )
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = details.status,
+                                            color = SilverDark,
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
                     if (details.tagline.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = details.tagline,
-                            color = TextSecondary,
+                            color = SilverDark,
                             fontSize = 14.sp,
                             fontStyle = FontStyle.Italic,
                             lineHeight = 20.sp
@@ -494,7 +507,7 @@ fun DetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = details.overview,
-                            color = Color.LightGray,
+                            color = SilverLight,
                             fontSize = 14.sp,
                             lineHeight = 22.sp
                         )
@@ -503,63 +516,94 @@ fun DetailScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Row(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    border = BorderStroke(0.5.dp, GlassStroke)
                 ) {
-                    Button(
-                        onClick = {
-                            if (isSeries) showEpisodeSelector = true
-                            else onPlayClick(1, 1)
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isSeries) "Episodes" else "Play",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-
-                    if (trailer != null) {
-                        OutlinedButton(
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Button(
                             onClick = {
-                                try {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:${trailer.key}"))
-                                    )
-                                } catch (_: Exception) {
-                                    context.startActivity(
-                                        Intent(
-                                            Intent.ACTION_VIEW,
-                                            Uri.parse("https://www.youtube.com/watch?v=${trailer.key}")
-                                        )
-                                    )
-                                }
+                                if (isSeries) showEpisodeSelector = true
+                                else onPlayClick(1, 1)
                             },
-                            modifier = Modifier.height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BlueAccent),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
                                 Icons.Filled.PlayArrow,
-                                contentDescription = "Trailer",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                contentDescription = null,
+                                tint = Color.White
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Trailer", color = Color.White, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isSeries) "Continue Watching" else "Play",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (trailer != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        try {
+                                            context.startActivity(
+                                                Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:${trailer.key}"))
+                                            )
+                                        } catch (_: Exception) {
+                                            context.startActivity(
+                                                Intent(
+                                                    Intent.ACTION_VIEW,
+                                                    Uri.parse("https://www.youtube.com/watch?v=${trailer.key}")
+                                                )
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, GlassStroke)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.PlayArrow,
+                                        contentDescription = "Trailer",
+                                        tint = SilverLight,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Trailer", color = SilverLight, fontSize = 13.sp)
+                                }
+                            }
+
+                            Button(
+                                onClick = { showEpisodeSelector = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkElevated),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Bookmark,
+                                    contentDescription = null,
+                                    tint = SilverLight,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Episodes", color = SilverLight, fontSize = 13.sp)
+                            }
                         }
                     }
                 }
@@ -568,9 +612,10 @@ fun DetailScreen(
                     Spacer(modifier = Modifier.height(28.dp))
                     Text(
                         text = "Cast",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        color = BlueAccent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.8.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -583,9 +628,10 @@ fun DetailScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "My List",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    color = BlueAccent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.8.sp
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -624,7 +670,7 @@ fun DetailScreen(
                         ) {
                             Text(
                                 text = "Progress",
-                                color = TextSecondary,
+                                color = SilverDark,
                                 fontSize = 12.sp
                             )
                             Text(
@@ -642,7 +688,7 @@ fun DetailScreen(
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
                             color = currentStatus.color,
-                            trackColor = Color.Gray.copy(alpha = 0.2f)
+                            trackColor = ProgressTrackBg
                         )
                     }
                 }
@@ -651,9 +697,10 @@ fun DetailScreen(
                     Spacer(modifier = Modifier.height(28.dp))
                     Text(
                         text = "More Like This",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        color = BlueAccent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.8.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -682,7 +729,7 @@ private fun CastCard(cast: CastMember) {
             modifier = Modifier
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(CardColor),
+                .background(DarkCard),
             contentAlignment = Alignment.Center
         ) {
             if (cast.profileUrl != null) {
@@ -701,7 +748,7 @@ private fun CastCard(cast: CastMember) {
                 Icon(
                     Icons.Filled.Person,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = SilverDark,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -721,7 +768,7 @@ private fun CastCard(cast: CastMember) {
 
         Text(
             text = cast.character,
-            color = TextSecondary,
+            color = SilverDark,
             fontSize = 10.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -733,70 +780,83 @@ private fun CastCard(cast: CastMember) {
 @Composable
 private fun RecommendationCard(item: ContentItem, onClick: () -> Unit) {
     val context = LocalContext.current
-    Column(
+
+    Card(
         modifier = Modifier
             .width(110.dp)
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(0.5.dp, GlassStroke)
     ) {
-        Box(
-            modifier = Modifier
-                .width(110.dp)
-                .height(165.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(CardColor),
-            contentAlignment = Alignment.Center
-        ) {
-            if (item.posterUrl != null) {
-                AndroidView(
-                    factory = { ctx ->
-                        android.widget.ImageView(ctx).apply {
-                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+        Column {
+            Box(
+                modifier = Modifier
+                    .width(110.dp)
+                    .height(165.dp)
+            ) {
+                if (item.posterUrl != null) {
+                    AndroidView(
+                        factory = { ctx ->
+                            android.widget.ImageView(ctx).apply {
+                                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        update = { iv ->
+                            Glide.with(context)
+                                .load(item.posterUrl)
+                                .transition(DrawableTransitionOptions.withCrossFade())
+                                .into(iv)
                         }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    update = { iv ->
-                        Glide.with(context)
-                            .load(item.posterUrl)
-                            .transition(DrawableTransitionOptions.withCrossFade())
-                            .into(iv)
-                    }
-                )
-            } else {
-                Icon(
-                    Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = SilverDark,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f))
+                            )
+                        )
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = item.name,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                color = SilverLight,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
 
-        Text(
-            text = item.name,
-            color = Color.White,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        if (item.voteAverage > 0) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Star,
-                    contentDescription = null,
-                    tint = StarColor,
-                    modifier = Modifier.size(10.dp)
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Text(
-                    text = String.format("%.1f", item.voteAverage),
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
+            if (item.voteAverage > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = String.format("%.1f", item.voteAverage),
+                        color = SilverDark,
+                        fontSize = 11.sp
+                    )
+                }
             }
         }
     }
@@ -808,32 +868,32 @@ private fun StatusButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    androidx.compose.material3.Card(
+    Card(
         modifier = Modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (isSelected) status.color.copy(alpha = 0.2f) else CardColor
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) status.color.copy(alpha = 0.2f) else DarkCard
         ),
         border = if (isSelected) {
-            androidx.compose.foundation.BorderStroke(2.dp, status.color)
+            BorderStroke(1.5.dp, status.color)
         } else {
-            androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
+            BorderStroke(0.5.dp, GlassStroke)
         }
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = status.icon,
-                contentDescription = status.label,
-                tint = if (isSelected) status.color else Color.Gray,
-                modifier = Modifier.size(24.dp)
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) status.color else UnreadGray)
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = status.label,
-                color = if (isSelected) status.color else Color.Gray,
+                color = if (isSelected) status.color else SilverDark,
                 fontSize = 10.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
             )

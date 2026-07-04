@@ -294,6 +294,8 @@ fun ChizukiApp(viewModel: MainViewModel) {
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val url = viewModel.fetchStreamUrl(
                 title = item.name,
+                tmdbId = item.id,
+                mediaType = item.type,
                 season = if (item.type == "tv") currentSeason else null,
                 episode = if (item.type == "tv") currentEpisode else null
             )
@@ -462,6 +464,8 @@ fun ChizukiApp(viewModel: MainViewModel) {
                     kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         val url = viewModel.fetchStreamUrl(
                             title = item.name,
+                            tmdbId = item.id,
+                            mediaType = item.type,
                             season = if (item.type == "tv") currentSeason else null,
                             episode = if (item.type == "tv") currentEpisode else null
                         )
@@ -490,6 +494,8 @@ fun ChizukiApp(viewModel: MainViewModel) {
                     kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         val url = viewModel.fetchStreamUrl(
                             title = item.name,
+                            tmdbId = item.id,
+                            mediaType = item.type,
                             season = if (item.type == "tv") currentSeason else null,
                             episode = if (item.type == "tv") currentEpisode else null
                         )
@@ -507,6 +513,8 @@ fun ChizukiApp(viewModel: MainViewModel) {
                     kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         val url = viewModel.fetchStreamUrl(
                             title = item.name,
+                            tmdbId = item.id,
+                            mediaType = item.type,
                             season = if (item.type == "tv") currentSeason else null,
                             episode = if (item.type == "tv") currentEpisode else null
                         )

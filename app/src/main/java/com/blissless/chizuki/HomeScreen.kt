@@ -1,6 +1,8 @@
 package com.blissless.chizuki
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,15 +87,14 @@ fun HomeScreen(
     val dropped = getDroppedList()
 
     LaunchedEffect(refreshKey) {
-        // This will trigger recomposition when refreshKey changes
     }
 
     val sections = listOf(
-        ListSection("continue", "Watching", Icons.Default.PlayArrow, Color(0xFF64B5F6)) { continueWatching },
-        ListSection("planning", "Planning to Watch", Icons.Default.Bookmark, Color(0xFF64B5F6)) { planningToWatch },
-        ListSection("completed", "Completed", Icons.Default.Check, Color(0xFF64B5F6)) { completed },
-        ListSection("onhold", "On Hold", Icons.Default.Pause, Color(0xFF64B5F6)) { onHold },
-        ListSection("dropped", "Dropped", Icons.Default.Delete, Color(0xFF64B5F6)) { dropped }
+        ListSection("continue", "Watching", Icons.Default.PlayArrow, StatusWatching) { continueWatching },
+        ListSection("planning", "Planning to Watch", Icons.Default.Bookmark, StatusPlanning) { planningToWatch },
+        ListSection("completed", "Completed", Icons.Default.Check, StatusCompleted) { completed },
+        ListSection("onhold", "On Hold", Icons.Default.Pause, StatusPaused) { onHold },
+        ListSection("dropped", "Dropped", Icons.Default.Delete, StatusDropped) { dropped }
     )
 
     LazyColumn(
@@ -138,7 +138,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = Color.White
+                        tint = SilverLight
                     )
                 }
             }
@@ -193,7 +193,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Add content from Explore tab!",
-                            color = Color.Gray,
+                            color = SilverDark,
                             fontSize = 14.sp
                         )
                     }
@@ -220,20 +220,21 @@ private fun SectionHeader(
             imageVector = icon,
             contentDescription = null,
             tint = color,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = title,
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
+            color = BlueAccent,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.8.sp
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = "($count)",
-            color = Color.Gray,
-            fontSize = 14.sp
+            color = SilverDark,
+            fontSize = 13.sp
         )
     }
 }
@@ -268,10 +269,11 @@ private fun AnimatedListCard(
         modifier = Modifier
             .width(140.dp)
             .height(220.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2235)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(0.5.dp, GlassStroke)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(
@@ -298,9 +300,8 @@ private fun AnimatedListCard(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.8f)
-                            ),
-                            startY = 100f
+                                DarkBackground.copy(alpha = 0.85f)
+                            )
                         )
                     )
             )
@@ -313,8 +314,8 @@ private fun AnimatedListCard(
                         .fillMaxWidth()
                         .height(3.dp)
                         .align(Alignment.BottomCenter),
-                    color = Color(0xFF64B5F6),
-                    trackColor = Color.Gray.copy(alpha = 0.3f)
+                    color = BlueAccent,
+                    trackColor = ProgressTrackBg
                 )
             }
 
@@ -335,14 +336,14 @@ private fun AnimatedListCard(
                     val progress = (item.progressPosition.toFloat() / item.progressDuration.toFloat()).coerceIn(0f, 1f)
                     Text(
                         text = "${(progress * 100).toInt()}% watched",
-                        color = Color.Gray,
+                        color = SilverDark,
                         fontSize = 10.sp
                     )
                 }
                 if (listType == "continue" && item.type == "tv") {
                     Text(
                         text = "S${item.progressSeason}:E${item.progressEpisode}",
-                        color = Color.Gray,
+                        color = SilverDark,
                         fontSize = 10.sp
                     )
                 }
@@ -363,27 +364,43 @@ private fun ContentCardHome(
             .width(120.dp)
             .clickable(onClick = onClick)
     ) {
-        AndroidView(
-            factory = { ctx ->
-                android.widget.ImageView(ctx).apply {
-                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                }
-            },
+        Card(
             modifier = Modifier
-                .width(120.dp)
-                .height(180.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.DarkGray),
-            update = { imageView ->
-                Glide.with(context)
-                    .load(item.posterUrl ?: item.backdropUrl)
-                    .transition(DrawableTransitionOptions.withCrossFade())
-                    .into(imageView)
+                .fillMaxWidth()
+                .height(180.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = DarkCard),
+            border = BorderStroke(0.5.dp, GlassStroke)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { imageView ->
+                        Glide.with(context)
+                            .load(item.posterUrl ?: item.backdropUrl)
+                            .transition(DrawableTransitionOptions.withCrossFade())
+                            .into(imageView)
+                    }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f))
+                            )
+                        )
+                )
             }
-        )
+        }
         Text(
             text = item.name,
-            color = Color.White,
+            color = SilverLight,
             fontSize = 12.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

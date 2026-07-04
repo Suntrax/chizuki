@@ -2,14 +2,15 @@ package com.blissless.chizuki
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -99,7 +101,7 @@ fun ExploreScreen(
                 .padding(bottom = 80.dp)
         ) {
             FeaturedCarousel(
-                items = trending, 
+                items = trending,
                 onItemClick = onContentClick,
                 autoScrollEnabled = true
             )
@@ -108,10 +110,10 @@ fun ExploreScreen(
             ContentSection(title = "Popular TV Shows", count = popularTVShows.size, items = popularTVShows, onItemClick = onContentClick)
             ContentSection(title = "Top Rated Movies", count = topRatedMovies.size, items = topRatedMovies, onItemClick = onContentClick)
             ContentSection(title = "Top Rated TV Shows", count = topRatedTVShows.size, items = topRatedTVShows, onItemClick = onContentClick)
-            
+
             Spacer(modifier = Modifier.height(20.dp))
         }
-        
+
         IconButton(
             onClick = onSearchClick,
             modifier = Modifier
@@ -122,7 +124,7 @@ fun ExploreScreen(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = Color.White
+                tint = SilverLight
             )
         }
     }
@@ -142,7 +144,7 @@ fun FeaturedCarousel(
         initialPage = actualCount * 100,
         pageCount = { actualCount * 200 }
     )
-    
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
@@ -166,7 +168,7 @@ fun FeaturedCarousel(
                 headerVisible = false
                 delay(80)
                 headerVisible = true
-                
+
                 autoScrollJob = scope.launch {
                     try {
                         val targetPage = pagerState.currentPage + 1
@@ -174,7 +176,7 @@ fun FeaturedCarousel(
                     } catch (_: Exception) {}
                 }
                 autoScrollJob?.join()
-                
+
                 delay(300)
             }
         }
@@ -194,8 +196,8 @@ fun FeaturedCarousel(
             userScrollEnabled = true
         ) { page ->
             val item = items[page % actualCount]
-            
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+
+            Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
                 AndroidView(
                     factory = { ctx ->
                         android.widget.ImageView(ctx).apply {
@@ -215,10 +217,10 @@ fun FeaturedCarousel(
                     modifier = Modifier.fillMaxSize().background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.3f),
+                                DarkBackground.copy(alpha = 0.4f),
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f),
-                                Color.Black.copy(alpha = 0.95f)
+                                DarkBackground.copy(alpha = 0.7f),
+                                DarkBackground.copy(alpha = 0.95f)
                             )
                         )
                     )
@@ -255,16 +257,16 @@ fun FeaturedCarousel(
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val voteAverage = currentItem.voteAverage
                         val type = currentItem.type
-                        
+
                         Text(text = if (type == "tv") "Series" else "Movie", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
                         if (voteAverage > 0) {
                             Text(text = " • ", color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
@@ -278,9 +280,9 @@ fun FeaturedCarousel(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -290,7 +292,7 @@ fun FeaturedCarousel(
                             modifier = Modifier.height(48.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1A2235),
+                                containerColor = DarkElevated,
                                 contentColor = Color.White
                             )
                         ) {
@@ -320,24 +322,25 @@ fun ContentSection(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+                fontWeight = FontWeight.SemiBold,
+                color = BlueAccent,
+                letterSpacing = 0.8.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.1f))
+                    .background(BlueAccent.copy(alpha = 0.15f))
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(
                     text = "$count",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = BlueAccent
                 )
             }
         }
-        
+
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -357,58 +360,61 @@ fun ContentCard(
     val context = LocalContext.current
 
     Column(modifier = Modifier.width(110.dp)) {
-        Box(
+        Card(
             modifier = Modifier
+                .fillMaxWidth()
                 .height(160.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .clickable(onClick = onClick)
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = DarkCard),
+            border = BorderStroke(0.5.dp, GlassStroke)
         ) {
-            AndroidView(
-                factory = { ctx ->
-                    android.widget.ImageView(ctx).apply {
-                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            Box(modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { imageView ->
+                        Glide.with(context)
+                            .load(item.posterUrl ?: item.backdropUrl)
+                            .transition(DrawableTransitionOptions.withCrossFade())
+                            .into(imageView)
                     }
-                },
-                modifier = Modifier.fillMaxSize(),
-                update = { imageView ->
-                    Glide.with(context)
-                        .load(item.posterUrl ?: item.backdropUrl)
-                        .transition(DrawableTransitionOptions.withCrossFade())
-                        .into(imageView)
-                }
-            )
+                )
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(70.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.9f)
-                            )
-                        )
-                    )
-            )
-
-            val displayScore = item.voteAverage.takeIf { it > 0 }
-            displayScore?.let { score ->
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        "★ ${String.format(Locale.US, "%.1f", score)}",
-                        color = Color(0xFFFFD700),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    DarkBackground.copy(alpha = 0.85f)
+                                )
+                            )
+                        )
+                )
+
+                val displayScore = item.voteAverage.takeIf { it > 0 }
+                displayScore?.let { score ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DarkBackground.copy(alpha = 0.7f))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            "★ ${String.format(Locale.US, "%.1f", score)}",
+                            color = Color(0xFFFFD700),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -421,7 +427,7 @@ fun ContentCard(
             maxLines = 2,
             style = MaterialTheme.typography.labelMedium,
             overflow = TextOverflow.Ellipsis,
-            color = Color.White
+            color = SilverLight
         )
     }
 }

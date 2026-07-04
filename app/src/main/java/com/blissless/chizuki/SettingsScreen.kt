@@ -1,6 +1,8 @@
 package com.blissless.chizuki
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +25,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -64,7 +67,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0A0E14))
+            .background(DarkBackground)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .statusBarsPadding()
@@ -75,12 +78,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
             text = "Settings",
             color = Color.White,
             fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
         )
 
         Spacer(Modifier.height(24.dp))
 
-        // ---- Updates section ----
         SettingsSectionHeader("Updates")
         SettingsCard {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -89,15 +92,15 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Check for Updates on Start", color = Color(0xFFE5E7EB), fontSize = 15.sp)
+                    Text("Check for Updates on Start", color = Silver, fontSize = 15.sp)
                     Switch(
                         checked = checkUpdatesOnStart,
                         onCheckedChange = { viewModel.setCheckUpdatesOnStart(it) },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF64B5F6),
-                            uncheckedThumbColor = Color(0xFF6B6B6B),
-                            uncheckedTrackColor = Color(0xFF1E1E1E)
+                            checkedThumbColor = BlueAccent,
+                            checkedTrackColor = BlueAccent.copy(alpha = 0.3f),
+                            uncheckedThumbColor = SilverDark,
+                            uncheckedTrackColor = DarkSurfaceVariant
                         )
                     )
                 }
@@ -111,10 +114,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Current Version", color = Color(0xFF9CA3AF), fontSize = 13.sp)
+                        Text("Current Version", color = SilverDark, fontSize = 13.sp)
                         Text(
                             currentVersion.ifBlank { "unknown" },
-                            color = Color(0xFFE5E7EB),
+                            color = Silver,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -124,21 +127,21 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = Color(0xFF64B5F6)
+                                color = BlueAccent
                             )
                         }
                         pendingUpdate != null -> {
                             TextButton(onClick = { viewModel.openReleasesPage() }) {
                                 Text(
                                     "v${pendingUpdate!!.tagName.removePrefix("v")} available →",
-                                    color = Color(0xFF10B981),
+                                    color = StatusCompleted,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                         else -> {
                             TextButton(onClick = { viewModel.checkForUpdatesManually() }) {
-                                Text("Check now", color = Color(0xFF64B5F6))
+                                Text("Check now", color = BlueAccent)
                             }
                         }
                     }
@@ -148,7 +151,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         Spacer(Modifier.height(24.dp))
 
-        // ---- Extensions section (nav-item that opens a dialog) ----
         SettingsSectionHeader("Extensions")
         SettingsCard {
             SettingsNavItem(
@@ -173,7 +175,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         Spacer(Modifier.height(24.dp))
 
-        // ---- About section ----
         SettingsSectionHeader("About")
         SettingsCard {
             SettingsNavItem(
@@ -187,16 +188,15 @@ fun SettingsScreen(viewModel: MainViewModel) {
         Spacer(Modifier.height(40.dp))
     }
 
-    // ---- Extensions selection dialog (matches Oni's pattern) ----
     if (showExtensionsDialog) {
         AlertDialog(
             onDismissRequest = { showExtensionsDialog = false },
-            containerColor = Color(0xFF141414),
-            shape = RoundedCornerShape(16.dp),
+            containerColor = DarkCard,
+            shape = RoundedCornerShape(20.dp),
             title = {
                 Text(
                     "Installed Extensions",
-                    color = Color(0xFFE5E7EB),
+                    color = Silver,
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -205,19 +205,19 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     if (extensions.isEmpty()) {
                         Text(
                             "No extensions installed.",
-                            color = Color(0xFF9CA3AF),
+                            color = SilverDark,
                             fontSize = 14.sp
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "Install an APK whose label starts with \"Chizuki: \".",
-                            color = Color(0xFF6B6B6B),
+                            color = SilverDark.copy(alpha = 0.7f),
                             fontSize = 12.sp
                         )
                     } else {
                         Text(
                             "Tap an extension to select it:",
-                            color = Color(0xFF9CA3AF),
+                            color = SilverDark,
                             fontSize = 12.sp
                         )
                         Spacer(Modifier.height(8.dp))
@@ -241,15 +241,15 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
-                                            if (isSelected) Color(0xFF10B981).copy(alpha = 0.2f)
-                                            else Color(0xFF64B5F6).copy(alpha = 0.15f)
+                                            if (isSelected) StatusCompleted.copy(alpha = 0.2f)
+                                            else BlueAccent.copy(alpha = 0.15f)
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Widgets,
                                         contentDescription = null,
-                                        tint = if (isSelected) Color(0xFF10B981) else Color(0xFF64B5F6),
+                                        tint = if (isSelected) StatusCompleted else BlueAccent,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -257,20 +257,20 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         ext.label.removePrefix("Chizuki: "),
-                                        color = if (isSelected) Color(0xFF10B981) else Color(0xFFE5E7EB),
+                                        color = if (isSelected) StatusCompleted else Silver,
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 15.sp
                                     )
                                     Text(
                                         ext.packageName,
-                                        color = Color(0xFF9CA3AF),
+                                        color = SilverDark,
                                         fontSize = 12.sp
                                     )
                                 }
                                 if (isSelected) {
                                     Text(
                                         "Active",
-                                        color = Color(0xFF10B981),
+                                        color = StatusCompleted,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -286,7 +286,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Clear selection", color = Color(0xFFEF4444))
+                                Text("Clear selection", color = StatusDropped)
                             }
                         }
                     }
@@ -294,32 +294,32 @@ fun SettingsScreen(viewModel: MainViewModel) {
             },
             confirmButton = {
                 TextButton(onClick = { showExtensionsDialog = false }) {
-                    Text("Close", color = Color(0xFF64B5F6))
+                    Text("Close", color = BlueAccent)
                 }
             }
         )
     }
 }
 
-// ---------- Helper composables (modeled on Oni) ----------
-
 @Composable
 private fun SettingsSectionHeader(text: String) {
     Text(
         text = text,
-        color = Color(0xFF64B5F6),
+        color = BlueAccent,
         fontSize = 13.sp,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.8.sp,
         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
     )
 }
 
 @Composable
 private fun SettingsCard(content: @Composable () -> Unit) {
-    Surface(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF141414)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(0.5.dp, GlassStroke)
     ) {
         Column { content() }
     }
@@ -330,7 +330,7 @@ private fun SettingsDivider() {
     HorizontalDivider(
         modifier = Modifier.fillMaxWidth(),
         thickness = 1.dp,
-        color = Color(0xFF1E1E1E)
+        color = GlassStroke
     )
 }
 
@@ -339,7 +339,7 @@ private fun SettingsNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
-    tint: Color = Color(0xFF64B5F6),
+    tint: Color = BlueAccent,
     trailing: @Composable (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
@@ -361,15 +361,15 @@ private fun SettingsNavItem(
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Color(0xFFE5E7EB), fontWeight = FontWeight.Medium, fontSize = 15.sp)
-            Text(subtitle, color = Color(0xFF9CA3AF), fontSize = 12.sp)
+            Text(title, color = Silver, fontWeight = FontWeight.Medium, fontSize = 15.sp)
+            Text(subtitle, color = SilverDark, fontSize = 12.sp)
         }
         if (trailing != null) trailing()
         else {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = Color(0xFF6B6B6B),
+                tint = SilverDark,
                 modifier = Modifier.size(14.dp)
             )
         }

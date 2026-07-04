@@ -1,6 +1,8 @@
 package com.blissless.chizuki
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.blissless.chizuki.ContentItem
@@ -107,7 +110,7 @@ fun ScheduleScreen(
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFF64B5F6))
+                CircularProgressIndicator(color = BlueAccent)
             }
         } else {
             LazyColumn(
@@ -121,8 +124,9 @@ fun ScheduleScreen(
                     Text(
                         text = "Today - $displayDate",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BlueAccent,
+                        letterSpacing = 0.8.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
@@ -151,8 +155,9 @@ fun ScheduleScreen(
                     Text(
                         text = "Coming Soon",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BlueAccent,
+                        letterSpacing = 0.8.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
@@ -162,8 +167,9 @@ fun ScheduleScreen(
                         Text(
                             text = "TV Shows",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SilverDark,
+                            letterSpacing = 0.8.sp,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
@@ -190,8 +196,9 @@ fun ScheduleScreen(
                         Text(
                             text = "Movies",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SilverDark,
+                            letterSpacing = 0.8.sp,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
@@ -227,7 +234,7 @@ fun ScheduleScreen(
                             Text(
                                 text = "Nothing scheduled",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = Color.Gray
+                                color = SilverDark
                             )
                         }
                     }
@@ -261,106 +268,114 @@ fun AiringShowCard(
 ) {
     val context = LocalContext.current
 
-    Column(modifier = Modifier.width(140.dp)) {
-        Box(
-            modifier = Modifier
-                .height(180.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onClick)
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    android.widget.ImageView(ctx).apply {
-                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                update = { imageView ->
-                    Glide.with(context)
-                        .load(show.posterUrl)
-                        .transition(DrawableTransitionOptions.withCrossFade())
-                        .into(imageView)
-                }
-            )
-
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(0.5.dp, GlassStroke)
+    ) {
+        Column {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
-                        )
-                    )
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .height(180.dp)
+                    .fillMaxWidth()
             ) {
-                Text(
-                    text = "TV",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { imageView ->
+                        Glide.with(context)
+                            .load(show.posterUrl)
+                            .transition(DrawableTransitionOptions.withCrossFade())
+                            .into(imageView)
+                    }
                 )
-            }
 
-            val displayScore = show.voteAverage.takeIf { it > 0 }
-            displayScore?.let { score ->
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, DarkBackground.copy(alpha = 0.8f))
+                            )
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
                         .padding(8.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(DarkBackground.copy(alpha = 0.7f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        "★ ${String.format(Locale.US, "%.1f", score)}",
-                        color = Color(0xFFFFD700),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "S${show.seasonNumber} E${show.episodeNumber}",
+                        text = "TV",
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    if (show.airTime.isNotEmpty()) {
+                }
+
+                val displayScore = show.voteAverage.takeIf { it > 0 }
+                displayScore?.let { score ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(DarkBackground.copy(alpha = 0.7f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
                         Text(
-                            text = show.airTime,
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.labelSmall
+                            "★ ${String.format(Locale.US, "%.1f", score)}",
+                            color = Color(0xFFFFD700),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
-            }
-        }
 
-        Text(
-            text = show.name,
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .height(36.dp),
-            maxLines = 2,
-            style = MaterialTheme.typography.labelMedium,
-            overflow = TextOverflow.Ellipsis,
-            color = Color.White
-        )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = "S${show.seasonNumber} E${show.episodeNumber}",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (show.airTime.isNotEmpty()) {
+                            Text(
+                                text = show.airTime,
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            Text(
+                text = show.name,
+                modifier = Modifier
+                    .padding(8.dp)
+                    .height(36.dp),
+                maxLines = 2,
+                style = MaterialTheme.typography.labelMedium,
+                overflow = TextOverflow.Ellipsis,
+                color = SilverLight
+            )
+        }
     }
 }
 
@@ -372,96 +387,105 @@ fun UpcomingCard(
 ) {
     val context = LocalContext.current
 
-    Column(modifier = Modifier.width(160.dp)) {
-        Box(
-            modifier = Modifier
-                .height(220.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onClick)
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    android.widget.ImageView(ctx).apply {
-                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                update = { imageView ->
-                    Glide.with(context)
-                        .load(item.posterUrl)
-                        .transition(DrawableTransitionOptions.withCrossFade())
-                        .into(imageView)
-                }
-            )
-
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(0.5.dp, GlassStroke)
+    ) {
+        Column {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))
-                        )
-                    )
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .height(180.dp)
+                    .fillMaxWidth()
             ) {
-                Text(
-                    text = "TV",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { imageView ->
+                        Glide.with(context)
+                            .load(item.posterUrl)
+                            .transition(DrawableTransitionOptions.withCrossFade())
+                            .into(imageView)
+                    }
                 )
-            }
 
-            val displayScore = item.voteAverage.takeIf { it > 0 }
-            displayScore?.let { score ->
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, DarkBackground.copy(alpha = 0.8f))
+                            )
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
                         .padding(8.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(DarkBackground.copy(alpha = 0.7f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        "★ ${String.format(Locale.US, "%.1f", score)}",
-                        color = Color(0xFFFFD700),
+                        text = "TV",
+                        color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
-        }
 
-        Text(
-            text = item.name,
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .height(36.dp),
-            maxLines = 2,
-            style = MaterialTheme.typography.labelMedium,
-            overflow = TextOverflow.Ellipsis,
-            color = Color.White
-        )
-
-        if (item.airDate.isNotEmpty()) {
-            val formattedDate = try {
-                LocalDate.parse(item.airDate).format(DateTimeFormatter.ofPattern("MMM d"))
-            } catch (e: DateTimeParseException) {
-                item.airDate
+                val displayScore = item.voteAverage.takeIf { it > 0 }
+                displayScore?.let { score ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(DarkBackground.copy(alpha = 0.7f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            "★ ${String.format(Locale.US, "%.1f", score)}",
+                            color = Color(0xFFFFD700),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
+
             Text(
-                text = "S${item.seasonNumber}E${item.episodeNumber} - $formattedDate",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray
+                text = item.name,
+                modifier = Modifier
+                    .padding(start = 8.dp, end = 8.dp, top = 8.dp)
+                    .height(36.dp),
+                maxLines = 2,
+                style = MaterialTheme.typography.labelMedium,
+                overflow = TextOverflow.Ellipsis,
+                color = SilverLight
             )
+
+            if (item.airDate.isNotEmpty()) {
+                val formattedDate = try {
+                    LocalDate.parse(item.airDate).format(DateTimeFormatter.ofPattern("MMM d"))
+                } catch (e: DateTimeParseException) {
+                    item.airDate
+                }
+                Text(
+                    text = "S${item.seasonNumber}E${item.episodeNumber} - $formattedDate",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SilverDark,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                )
+            }
         }
     }
 }
@@ -474,96 +498,105 @@ fun UpcomingCard(
 ) {
     val context = LocalContext.current
 
-    Column(modifier = Modifier.width(160.dp)) {
-        Box(
-            modifier = Modifier
-                .height(220.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onClick)
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    android.widget.ImageView(ctx).apply {
-                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                update = { imageView ->
-                    Glide.with(context)
-                        .load(item.backdropUrl ?: item.posterUrl)
-                        .transition(DrawableTransitionOptions.withCrossFade())
-                        .into(imageView)
-                }
-            )
-
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(0.5.dp, GlassStroke)
+    ) {
+        Column {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))
-                        )
-                    )
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .height(180.dp)
+                    .fillMaxWidth()
             ) {
-                Text(
-                    text = if (isTV) "TV" else "Movie",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { imageView ->
+                        Glide.with(context)
+                            .load(item.backdropUrl ?: item.posterUrl)
+                            .transition(DrawableTransitionOptions.withCrossFade())
+                            .into(imageView)
+                    }
                 )
-            }
 
-            val displayScore = item.voteAverage.takeIf { it > 0 }
-            displayScore?.let { score ->
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, DarkBackground.copy(alpha = 0.8f))
+                            )
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
                         .padding(8.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(DarkBackground.copy(alpha = 0.7f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        "★ ${String.format(Locale.US, "%.1f", score)}",
-                        color = Color(0xFFFFD700),
+                        text = if (isTV) "TV" else "Movie",
+                        color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
-        }
 
-        Text(
-            text = item.name,
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .height(36.dp),
-            maxLines = 2,
-            style = MaterialTheme.typography.labelMedium,
-            overflow = TextOverflow.Ellipsis,
-            color = Color.White
-        )
-
-        if (!isTV && item.releaseDate.isNotEmpty()) {
-            val formattedDate = try {
-                LocalDate.parse(item.releaseDate).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
-            } catch (e: DateTimeParseException) {
-                item.releaseDate
+                val displayScore = item.voteAverage.takeIf { it > 0 }
+                displayScore?.let { score ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(DarkBackground.copy(alpha = 0.7f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            "★ ${String.format(Locale.US, "%.1f", score)}",
+                            color = Color(0xFFFFD700),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
+
             Text(
-                text = formattedDate,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray
+                text = item.name,
+                modifier = Modifier
+                    .padding(start = 8.dp, end = 8.dp, top = 8.dp)
+                    .height(36.dp),
+                maxLines = 2,
+                style = MaterialTheme.typography.labelMedium,
+                overflow = TextOverflow.Ellipsis,
+                color = SilverLight
             )
+
+            if (!isTV && item.releaseDate.isNotEmpty()) {
+                val formattedDate = try {
+                    LocalDate.parse(item.releaseDate).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+                } catch (e: DateTimeParseException) {
+                    item.releaseDate
+                }
+                Text(
+                    text = formattedDate,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SilverDark,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                )
+            }
         }
     }
 }

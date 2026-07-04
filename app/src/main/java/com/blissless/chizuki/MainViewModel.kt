@@ -163,9 +163,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Resolve a stream URL for the given title through the selected extension.
      * Returns null if no extension is selected or the extension returns no URL.
      */
-    fun fetchStreamUrl(title: String, season: Int? = null, episode: Int? = null): String? {
+    fun fetchStreamUrl(
+        title: String,
+        tmdbId: Int? = null,
+        mediaType: String? = null,
+        season: Int? = null,
+        episode: Int? = null
+    ): String? {
         val authority = _selectedExtensionAuthority.value
-        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: title=$title season=$season episode=$episode")
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: title=$title tmdbId=$tmdbId mediaType=$mediaType season=$season episode=$episode")
         android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: selected authority = $authority")
 
         if (authority == null) {
@@ -173,7 +179,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
 
-        val url = extensionManager.fetchStreamUrl(authority, title, season, episode)
+        val url = extensionManager.fetchStreamUrl(authority, title, tmdbId, mediaType, season, episode)
         android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: result = $url")
         return url
     }
