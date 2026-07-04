@@ -1,23 +1,20 @@
 package com.blissless.chizuki
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Explore
@@ -28,16 +25,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
+// Oni-inspired color tokens (prefixed to avoid conflicts with other files)
+private val NavDarkCard = Color(0xFF1A1A1E)
+private val NavGlassStroke = Color(0x1AFFFFFF)
+private val NavBlueAccent = Color(0xFF3B82F6)
+private val NavSilverDark = Color(0xFF9CA3AF)
 
 private data class NavTab(
     val index: Int,
@@ -58,67 +57,88 @@ fun ChizukiBottomNav(
         NavTab(3, Icons.Filled.Settings, "Settings")
     )
 
-    Surface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 40.dp, end = 40.dp, bottom = 12.dp)
             .navigationBarsPadding(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = DarkCard,
-        border = BorderStroke(0.5.dp, GlassStroke),
-        shadowElevation = 12.dp
+        contentAlignment = Alignment.BottomCenter
     ) {
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(start = 48.dp, end = 48.dp, bottom = 4.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = NavDarkCard,
+            tonalElevation = 0.dp,
+            shadowElevation = 12.dp,
+            border = BorderStroke(0.5.dp, NavGlassStroke)
         ) {
-            tabs.forEach { tab ->
-                val isSelected = tab.index == selectedTab
-                val bgColor by animateColorAsState(
-                    targetValue = if (isSelected) BlueAccent else Color.Transparent,
-                    animationSpec = spring(dampingRatio = 0.68f, stiffness = 280f),
-                    label = "tabBg"
-                )
-                val contentColor by animateColorAsState(
-                    targetValue = if (isSelected) Color.White else SilverDark,
-                    animationSpec = spring(dampingRatio = 0.68f, stiffness = 280f),
-                    label = "tabContent"
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                tabs.forEach { tab ->
+                    val isSelected = tab.index == selectedTab
 
-                Box(
-                    modifier = Modifier
-                        .weight(if (isSelected) 1.8f else 1f)
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(bgColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onTabSelected(tab.index) }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                    Box(
+                        modifier = Modifier
+                            .weight(if (isSelected) 0.67f else 0.25f)
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            )
+                            .height(56.dp)
+                            .pointerInput(tab.index) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.any { it.pressed }) {
+                                            onTabSelected(tab.index)
+                                        }
+                                    }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
                         if (isSelected) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = tab.label,
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
+                            Surface(
+                                shape = MaterialTheme.shapes.extraLarge,
+                                color = NavBlueAccent,
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(0.95f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        tab.icon,
+                                        contentDescription = tab.label,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = tab.label,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
+                        } else {
+                            Icon(
+                                tab.icon,
+                                contentDescription = tab.label,
+                                tint = NavSilverDark,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
