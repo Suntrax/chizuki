@@ -42,6 +42,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
@@ -102,7 +103,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -134,6 +134,67 @@ private const val PLAYER_TAG = "Chizuki/Player"
  *   - User-Agent: a browser UA (from the upstream headers if present, else default)
  *   - Accept: star-slash-star (all media types)
  */
+/**
+ * Build the appropriate HTTP headers for a stream URL.
+ *
+ * Two cases:
+ *   1. Vidlove proxy URLs (contain "vidlove" or have ?headers= param):
+ *      Use the proxy-impersonation headers (Origin/Referer from player.vidlove.cc).
+ *   2. Direct stream URLs (from vidking, megaplay, and other extensions):
+ *      Send only User-Agent — no Referer/Origin, since third-party CDNs
+ *      may reject cross-origin Referer headers with 403.
+ */
+private fun buildStreamHeaders(rawUrl: String): Map<String, String> {
+    val isVidloveProxy = rawUrl.contains("vidlove") || rawUrl.contains("player.vidlove")
+    val hasHeadersParam = try {
+        val uri = Uri.parse(rawUrl)
+        !(uri.getQueryParameter("headers").isNullOrBlank())
+    } catch (_: Exception) { false }
+
+    if (isVidloveProxy || hasHeadersParam) {
+        Log.d(PLAYER_TAG, "buildStreamHandler: using proxy headers for $rawUrl")
+        return buildProxyHeaders(rawUrl)
+    }
+
+    // For known streaming CDNs, set the appropriate Referer.
+    // These CDNs check the Referer header and return 403 if it doesn't
+    // match the embedding site.
+    val referer = when {
+        rawUrl.contains("ironbubble") -> {
+            Log.d(PLAYER_TAG, "buildStreamHandler: matched ironbubble for url=$rawUrl")
+            "https://www.vidking.net/"
+        }
+        rawUrl.contains("uwucdn") -> {
+            Log.d(PLAYER_TAG, "buildStreamHandler: matched uwucdn for url=$rawUrl")
+            "https://www miruro.tv/"
+        }
+        rawUrl.contains("megaplay") || rawUrl.contains("nekostream") -> {
+            Log.d(PLAYER_TAG, "buildStreamHandler: matched megaplay/nekostream for url=$rawUrl")
+            "https://megaplay.buzz/"
+        }
+        rawUrl.contains("waaw") || rawUrl.contains("cfglobalcdn") -> {
+            Log.d(PLAYER_TAG, "buildStreamHandler: matched waaw/cfglobalcdn for url=$rawUrl")
+            "https://waaw.ac/"
+        }
+        else -> {
+            Log.d(PLAYER_TAG, "buildStreamHandler: no referer matched for url=$rawUrl")
+            null
+        }
+    }
+
+    val headers = mutableMapOf(
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept" to "*/*",
+        "Accept-Language" to "en-US,en;q=0.9"
+    )
+    if (referer != null) {
+        headers["Referer"] = referer
+        headers["Origin"] = referer.trimEnd('/')
+    }
+    Log.d(PLAYER_TAG, "buildStreamHandler: final headers ${headers.keys} for $rawUrl")
+    return headers
+}
+
 private fun buildProxyHeaders(rawUrl: String): Map<String, String> {
     val upstreamHeaders = try {
         val uri = Uri.parse(rawUrl)
@@ -162,10 +223,61 @@ private fun buildProxyHeaders(rawUrl: String): Map<String, String> {
     )
 }
 
+data class ServerEntry(
+    val name: String,
+    val url: String,
+    val quality: String = "",
+    val error: String = ""
+)
+
+private fun parseServerEntries(json: String?): List<ServerEntry> {
+    if (json == null) return emptyList()
+    return try {
+        val obj = org.json.JSONObject(json)
+        val servers = obj.optJSONObject("servers") ?: return emptyList()
+        val keys = listOf("Hydrogen", "Titanium", "Oxygen", "Lithium", "Helium")
+        keys.mapNotNull { key ->
+            val srv = servers.optJSONObject(key) ?: return@mapNotNull null
+            val err = srv.optString("error", "")
+            val url = srv.optString("m3u8", "")
+                .ifBlank { srv.optString("mp4", "") }
+                .ifBlank { srv.optString("dash", "") }
+                .ifBlank {
+                    // Try first source url
+                    val sources = srv.optJSONArray("sources")
+                    sources?.optJSONObject(0)?.optString("url", "") ?: ""
+                }
+            if (url.isNotBlank()) {
+                ServerEntry(name = key, url = url, error = err)
+            } else {
+                ServerEntry(name = key, url = "", error = err.ifBlank { "no stream URL" })
+            }
+        }
+    } catch (e: Exception) {
+        Log.e(PLAYER_TAG, "parseServerEntries error", e)
+        emptyList()
+    }
+}
+
+private fun parseSelectedServerName(json: String?): String {
+    if (json == null) return ""
+    val entries = parseServerEntries(json)
+    return entries.firstOrNull { it.url.isNotBlank() }?.name ?: ""
+}
+
+private fun parseStreamingHost(json: String?): String {
+    if (json == null) return ""
+    return try {
+        val obj = org.json.JSONObject(json)
+        obj.optString("source", "")
+    } catch (e: Exception) { "" }
+}
+
 @OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
     videoUrl: String,
+    streamResultJson: String? = null,
     currentSeason: Int = 1,
     currentEpisode: Int = 1,
     totalEpisodes: Int = 0,
@@ -184,12 +296,13 @@ fun PlayerScreen(
     onPreviousEpisode: (() -> Unit)? = null,
     onNextEpisode: (() -> Unit)? = null,
     onPlaybackError: (() -> Unit)? = null,
+    onServerChange: ((serverUrl: String) -> Unit)? = null,
     onClose: () -> Unit,
     isSeries: Boolean = false
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
-    
+
     var hasTriggeredProgressUpdate by remember { mutableStateOf(false) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     var hasError by remember { mutableStateOf(false) }
@@ -221,11 +334,23 @@ fun PlayerScreen(
     var skipIsForward by remember { mutableStateOf(true) }
 
     val scope = remember { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main) }
-    
+
     var hasRestoredPosition by remember { mutableStateOf(false) }
-    
+
     var currentSpeed by remember { mutableFloatStateOf(1f) }
     val speedOptions = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+
+    var showServerMenu by remember { mutableStateOf(false) }
+    var currentServerIndex by remember { mutableIntStateOf(0) }
+    var serverEntries by remember(streamResultJson) {
+        mutableStateOf(parseServerEntries(streamResultJson))
+    }
+    var selectedServerName by remember(streamResultJson) {
+        mutableStateOf(parseSelectedServerName(streamResultJson))
+    }
+    var streamingHost by remember(streamResultJson) {
+        mutableStateOf(parseStreamingHost(streamResultJson))
+    }
 
     LaunchedEffect(Unit) {
         activity?.window?.let { window ->
@@ -251,17 +376,30 @@ fun PlayerScreen(
     // reference. When videoUrl changes, we update the factory's headers AND
     // set a new media item on the same player — no player recreation.
     val dataSourceFactoryRef = remember {
-        OkHttpDataSource.Factory(
-            okhttp3.OkHttpClient.Builder()
-                .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                .followRedirects(true)
-                .build()
-        )
+        // Build a trust-all OkHttpClient with HTTP/1.1 — needed for CDNs
+        // that use TLS fingerprinting (ironbubble, uwucdn, etc.) and reject
+        // OkHttp's default HTTP/2 + strict TLS handshake.
+        val trustAllManager = object : javax.net.ssl.X509TrustManager {
+            override fun checkClientTrusted(chain: Array<out java.security.cert.X509Certificate>?, authType: String?) {}
+            override fun checkServerTrusted(chain: Array<out java.security.cert.X509Certificate>?, authType: String?) {}
+            override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+        }
+        val sslContext = javax.net.ssl.SSLContext.getInstance("TLS").apply {
+            init(null, arrayOf<javax.net.ssl.TrustManager>(trustAllManager), java.security.SecureRandom())
+        }
+        val okHttpClient = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .followRedirects(true)
+            .sslSocketFactory(sslContext.socketFactory, trustAllManager)
+            .hostnameVerifier { _, _ -> true }
+            .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+            .build()
+        SmartDataSourceFactory(okHttpClient)
     }
 
     val exoPlayer = remember(context) {
-        Log.d(PLAYER_TAG, "Building ExoPlayer (one-time) with OkHttpDataSource")
+        Log.d(PLAYER_TAG, "Building ExoPlayer (one-time) with SmartDataSourceFactory")
 
         val bufferAheadMs = 30000
         val loadControl = DefaultLoadControl.Builder()
@@ -375,6 +513,17 @@ fun PlayerScreen(
         }
     }
 
+    // Sync selectedServerName with the current videoUrl when it changes
+    LaunchedEffect(videoUrl) {
+        if (videoUrl.isNotBlank()) {
+            val entry = serverEntries.firstOrNull { it.url == videoUrl }
+            if (entry != null) {
+                currentServerIndex = serverEntries.indexOf(entry)
+                selectedServerName = entry.name
+            }
+        }
+    }
+
     LaunchedEffect(videoUrl) {
         // While the extension is resolving the stream URL, videoUrl will be
         // blank — don't feed an empty URI to ExoPlayer.
@@ -386,15 +535,13 @@ fun PlayerScreen(
         hasRestoredPosition = false
         isBuffering = true
         hasPlaybackStarted = false
-        errorRetryCount = 0
         bufferedPosition = 0L
         maxBufferedPosition = 0L
 
         // Update the DataSource factory's headers for this specific URL.
         // The factory is mutable — calling setDefaultRequestProperties again
-        // replaces the old headers with the new ones for all subsequent
-        // requests (manifest + segment loads).
-        val headers = buildProxyHeaders(videoUrl)
+        // replaces the old ones for all subsequent requests (manifest + segments).
+        val headers = buildStreamHeaders(videoUrl)
         val userAgent = headers["User-Agent"]
             ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         Log.d(PLAYER_TAG, "updating factory headers: ${headers.keys}")
@@ -468,13 +615,13 @@ fun PlayerScreen(
     }
 
     DisposableEffect(Unit) {
-        onDispose { 
+        onDispose {
             val pos = exoPlayer.currentPosition
             val dur = exoPlayer.duration
             if (dur > 0) {
                 onSavePosition?.invoke(pos, dur)
             }
-            exoPlayer.release() 
+            exoPlayer.release()
         }
     }
 
@@ -683,6 +830,68 @@ fun PlayerScreen(
                                 }
                             }
 
+                            // Server selector button
+                            if (serverEntries.size > 1) {
+                                Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                                    IconButton(
+                                        onClick = { showServerMenu = !showServerMenu },
+                                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp))
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Icon(Icons.Default.Dns, "Server", tint = Color.White, modifier = Modifier.size(16.dp))
+                                            Text(
+                                                text = selectedServerName.take(8),
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = showServerMenu,
+                                        onDismissRequest = { showServerMenu = false },
+                                        modifier = Modifier.background(DarkCard).width(200.dp)
+                                    ) {
+                                        serverEntries.forEach { entry ->
+                                            val hasUrl = entry.url.isNotBlank()
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Column {
+                                                        Text(
+                                                            text = entry.name,
+                                                            color = if (hasUrl) Color.White else Color.Gray,
+                                                            style = MaterialTheme.typography.bodyMedium
+                                                        )
+                                                        if (entry.error.isNotBlank()) {
+                                                            Text(
+                                                                text = entry.error,
+                                                                color = Color.Gray,
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                maxLines = 1
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onClick = {
+                                                    if (hasUrl && entry.name != selectedServerName) {
+                                                        selectedServerName = entry.name
+                                                        currentServerIndex = serverEntries.indexOf(entry)
+                                                        showServerMenu = false
+                                                        onServerChange?.invoke(entry.url)
+                                                    } else {
+                                                        showServerMenu = false
+                                                    }
+                                                },
+                                                leadingIcon = if (selectedServerName == entry.name) {
+                                                    { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)) }
+                                                } else null
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
                                 IconButton(
                                     onClick = { resizeModeIndex = (resizeModeIndex + 1) % resizeModes.size },
@@ -801,13 +1010,13 @@ fun PlayerScreen(
                             Text(skipIndicatorText, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                     }
-                    }
+                }
 
                 if (hasError && playbackError != null) {
-                        Card(
-                            modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = DarkCard),
-                            shape = RoundedCornerShape(12.dp)
+                    Card(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkCard),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Error, null, tint = Color.Red, modifier = Modifier.size(32.dp))
@@ -926,7 +1135,7 @@ fun PlayerScreen(
                             }
                         }
                     }
-                    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

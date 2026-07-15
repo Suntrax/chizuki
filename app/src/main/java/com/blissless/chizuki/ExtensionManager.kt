@@ -73,6 +73,16 @@ class ExtensionManager(private val context: Context) {
      * @param episode    optional episode number (TV only)
      * @return the first stream URL on success, null on failure or empty result
      */
+    /**
+     * Result of fetching a stream from an extension.
+     */
+    data class StreamResult(
+        /** The raw JSON string from the extension (may contain servers, subtitles, etc.) */
+        val rawJson: String,
+        /** The primary stream URL to play (from Auto[0] or simple url field) */
+        val primaryUrl: String?
+    )
+
     fun fetchStreamUrl(
         authority: String,
         title: String,
@@ -80,7 +90,7 @@ class ExtensionManager(private val context: Context) {
         mediaType: String? = null,
         season: Int? = null,
         episode: Int? = null
-    ): String? {
+    ): StreamResult? {
         val builder = Uri.parse("content://$authority/$PATH_SCRAPE")
             .buildUpon()
             .appendQueryParameter("title", title)
@@ -120,26 +130,11 @@ class ExtensionManager(private val context: Context) {
                 return null
             }
 
-            // Accept a few response shapes — be lenient with extensions.
-            for (key in listOf("Auto", "auto", "default", "urls")) {
-                val arr = obj.optJSONArray(key)
-                if (arr != null && arr.length() > 0) {
-                    val url = arr.optString(0)
-                    Log.d(TAG, "fetchStreamUrl: extracted URL from '$key' array: $url")
-                    return url.takeIf { it.isNotBlank() }
-                }
-            }
-            // Single-URL fallback.
-            for (key in listOf("url", "stream", "m3u8", "playlist")) {
-                val v = obj.optString(key, "")
-                if (v.startsWith("http")) {
-                    Log.d(TAG, "fetchStreamUrl: extracted URL from '$key' field: $v")
-                    return v
-                }
-            }
+            // Extract primary URL from "Auto" array or single fields
+            val primaryUrl = extractPrimaryUrl(obj)
 
-            Log.e(TAG, "fetchStreamUrl: no stream URL found in response JSON")
-            null
+            Log.d(TAG, "fetchStreamUrl: primaryUrl=$primaryUrl")
+            StreamResult(rawJson = json, primaryUrl = primaryUrl)
         } catch (e: SecurityException) {
             Log.e(TAG, "fetchStreamUrl: SecurityException — ContentProvider not exported?", e)
             null
@@ -149,6 +144,32 @@ class ExtensionManager(private val context: Context) {
         } finally {
             cursor?.close()
         }
+    }
+
+    /**
+     * Extract the primary stream URL from a parsed JSON response.
+     * Checks "Auto" array first, then simple URL fields.
+     */
+    private fun extractPrimaryUrl(obj: JSONObject): String? {
+        for (key in listOf("Auto", "auto", "default", "urls")) {
+            val arr = obj.optJSONArray(key)
+            if (arr != null && arr.length() > 0) {
+                val url = arr.optString(0)
+                if (url.isNotBlank()) {
+                    Log.d(TAG, "extractPrimaryUrl: from '$key' array: $url")
+                    return url
+                }
+            }
+        }
+        for (key in listOf("url", "stream", "m3u8", "playlist")) {
+            val v = obj.optString(key, "")
+            if (v.startsWith("http")) {
+                Log.d(TAG, "extractPrimaryUrl: from '$key' field: $v")
+                return v
+            }
+        }
+        Log.e(TAG, "extractPrimaryUrl: no stream URL found in response JSON")
+        return null
     }
 
     companion object {

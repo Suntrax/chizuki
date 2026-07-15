@@ -220,6 +220,8 @@ fun ChizukiApp(viewModel: MainViewModel) {
     var showSearchScreen by remember { mutableStateOf(false) }
     var searchFocus by remember { mutableStateOf(false) }
     var currentVideoUrl by remember { mutableStateOf<String?>(null) }
+    var streamResultJson by remember { mutableStateOf<String?>(null) }
+    var currentServerIndex by remember { mutableIntStateOf(0) }
     var currentContent by remember { mutableStateOf<ContentItem?>(null) }
     var currentSeason by remember { mutableIntStateOf(1) }
     var currentEpisode by remember { mutableIntStateOf(1) }
@@ -288,11 +290,13 @@ fun ChizukiApp(viewModel: MainViewModel) {
         if (currentContent == null) return
         showDetailScreen = false
         currentVideoUrl = null
+        streamResultJson = null
+        currentServerIndex = 0
         isPlayerActive = true
         val item = currentContent!!
         android.util.Log.d("Chizuki", "onPlayContent: Resolving stream for ${item.name} (${item.type})")
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val url = viewModel.fetchStreamUrl(
+            val result = viewModel.fetchStreamUrl(
                 title = item.name,
                 tmdbId = item.id,
                 mediaType = item.type,
@@ -300,7 +304,7 @@ fun ChizukiApp(viewModel: MainViewModel) {
                 episode = if (item.type == "tv") currentEpisode else null
             )
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                if (url == null) {
+                if (result == null || result.primaryUrl == null) {
                     isPlayerActive = false
                     Toast.makeText(
                         context,
@@ -308,8 +312,50 @@ fun ChizukiApp(viewModel: MainViewModel) {
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
-                    android.util.Log.d("Chizuki", "onPlayContent: Got URL from extension: $url")
-                    currentVideoUrl = url
+                    android.util.Log.d("Chizuki", "onPlayContent: Got URL from extension: ${result.primaryUrl}")
+                    streamResultJson = result.rawJson
+                    currentVideoUrl = result.primaryUrl
+                }
+            }
+        }
+    }
+
+    fun selectNextServerUrl(json: String, currentIdx: Int): String? {
+        return try {
+            val obj = org.json.JSONObject(json)
+            val servers = obj.optJSONObject("servers") ?: return null
+            val keys = listOf("Hydrogen", "Titanium", "Oxygen", "Lithium", "Helium")
+            val filtered = keys.mapNotNull { key ->
+                val srv = servers.optJSONObject(key) ?: return@mapNotNull null
+                val url = srv.optString("m3u8", "")
+                    .ifBlank { srv.optString("mp4", "") }
+                    .ifBlank { srv.optString("dash", "") }
+                    .ifBlank { null }
+                if (url != null) url else null
+            }
+            filtered.getOrNull(currentIdx + 1)
+        } catch (e: Exception) {
+            android.util.Log.e("Chizuki", "selectNextServerUrl error", e)
+            null
+        }
+    }
+
+    fun fallbackRefetch() {
+        val item = currentContent ?: return
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val result = viewModel.fetchStreamUrl(
+                title = item.name,
+                tmdbId = item.id,
+                mediaType = item.type,
+                season = if (item.type == "tv") currentSeason else null,
+                episode = if (item.type == "tv") currentEpisode else null
+            )
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (result != null && result.primaryUrl != null) {
+                    streamResultJson = result.rawJson
+                    currentVideoUrl = result.primaryUrl
+                } else {
+                    Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -320,6 +366,7 @@ fun ChizukiApp(viewModel: MainViewModel) {
             isPlayerActive -> {
                 isPlayerActive = false
                 currentVideoUrl = null
+                streamResultJson = null
             }
             showSearchScreen -> {
                 showSearchScreen = false
@@ -399,6 +446,7 @@ fun ChizukiApp(viewModel: MainViewModel) {
 
             PlayerScreen(
                 videoUrl = currentVideoUrl ?: "",
+                streamResultJson = streamResultJson,
                 currentSeason = currentSeason,
                 currentEpisode = currentEpisode,
                 totalEpisodes = episodesInCurrentSeason,
@@ -470,7 +518,7 @@ fun ChizukiApp(viewModel: MainViewModel) {
                             episode = if (item.type == "tv") currentEpisode else null
                         )
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            currentVideoUrl = url
+                            currentVideoUrl = url?.primaryUrl
                             if (url == null) {
                                 Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
                             }
@@ -500,7 +548,7 @@ fun ChizukiApp(viewModel: MainViewModel) {
                             episode = if (item.type == "tv") currentEpisode else null
                         )
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            currentVideoUrl = url
+                            currentVideoUrl = url?.primaryUrl
                             if (url == null) {
                                 Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
                             }
@@ -508,27 +556,29 @@ fun ChizukiApp(viewModel: MainViewModel) {
                     }
                 },
                 onPlaybackError = {
-                    currentVideoUrl = null
-                    val item = currentContent ?: return@PlayerScreen
-                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        val url = viewModel.fetchStreamUrl(
-                            title = item.name,
-                            tmdbId = item.id,
-                            mediaType = item.type,
-                            season = if (item.type == "tv") currentSeason else null,
-                            episode = if (item.type == "tv") currentEpisode else null
-                        )
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            currentVideoUrl = url
-                            if (url == null) {
-                                Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
-                            }
+                    val json = streamResultJson
+                    if (json != null) {
+                        val nextServerUrl = selectNextServerUrl(json, currentServerIndex)
+                        if (nextServerUrl != null) {
+                            currentServerIndex++
+                            currentVideoUrl = nextServerUrl
+                            android.util.Log.d("Chizuki", "onPlaybackError: trying next server #${currentServerIndex}: $nextServerUrl")
+                        } else {
+                            android.util.Log.d("Chizuki", "onPlaybackError: no more servers to try, re-fetching from extension")
+                            fallbackRefetch()
                         }
+                    } else {
+                        fallbackRefetch()
                     }
+                },
+                onServerChange = { serverUrl ->
+                    android.util.Log.d("Chizuki", "onServerChange: switching to $serverUrl")
+                    currentVideoUrl = serverUrl
                 },
                 onClose = {
                     isPlayerActive = false
                     currentVideoUrl = null
+                    streamResultJson = null
                 }
             )
         }

@@ -169,7 +169,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         mediaType: String? = null,
         season: Int? = null,
         episode: Int? = null
-    ): String? {
+    ): ExtensionManager.StreamResult? {
         val authority = _selectedExtensionAuthority.value
         android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: title=$title tmdbId=$tmdbId mediaType=$mediaType season=$season episode=$episode")
         android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: selected authority = $authority")
@@ -179,9 +179,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
 
-        val url = extensionManager.fetchStreamUrl(authority, title, tmdbId, mediaType, season, episode)
-        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: result = $url")
-        return url
+        val result = extensionManager.fetchStreamUrl(authority, title, tmdbId, mediaType, season, episode)
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: result = $result")
+        return result
     }
 
     fun checkForUpdatesSilently() {
