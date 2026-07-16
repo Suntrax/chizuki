@@ -171,16 +171,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         episode: Int? = null
     ): ExtensionManager.StreamResult? {
         val authority = _selectedExtensionAuthority.value
-        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: title=$title tmdbId=$tmdbId mediaType=$mediaType season=$season episode=$episode")
+        android.util.Log.d("Chizuki/ViewModel", "===== fetchStreamUrl START =====")
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: title='$title' tmdbId=$tmdbId mediaType=$mediaType season=$season episode=$episode")
         android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: selected authority = $authority")
 
         if (authority == null) {
             android.util.Log.e("Chizuki/ViewModel", "fetchStreamUrl: NO EXTENSION SELECTED — returning null")
+            android.util.Log.e("Chizuki/ViewModel", "fetchStreamUrl: user must select an extension in Settings first")
             return null
         }
 
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: calling extensionManager.fetchStreamUrl...")
         val result = extensionManager.fetchStreamUrl(authority, title, tmdbId, mediaType, season, episode)
-        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: result = $result")
+        android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: result=$result")
+        if (result != null) {
+            android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: primaryUrl=${result.primaryUrl}")
+            android.util.Log.d("Chizuki/ViewModel", "fetchStreamUrl: rawJson length=${result.rawJson.length}")
+        } else {
+            android.util.Log.e("Chizuki/ViewModel", "fetchStreamUrl: extension returned NULL result")
+        }
+        android.util.Log.d("Chizuki/ViewModel", "===== fetchStreamUrl END =====")
         return result
     }
 

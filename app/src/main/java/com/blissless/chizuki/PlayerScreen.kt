@@ -144,15 +144,36 @@ private const val PLAYER_TAG = "Chizuki/Player"
  *      Send only User-Agent — no Referer/Origin, since third-party CDNs
  *      may reject cross-origin Referer headers with 403.
  */
-private fun buildStreamHeaders(rawUrl: String): Map<String, String> {
+private fun buildStreamHeaders(rawUrl: String, extensionHeaders: Map<String, String> = emptyMap()): Map<String, String> {
+    Log.d(PLAYER_TAG, "buildStreamHeaders: URL=$rawUrl")
+    Log.d(PLAYER_TAG, "buildStreamHeaders: extensionHeaders=$extensionHeaders")
+
+    // Extension-provided headers take full priority — if the extension
+    // supplies Referer/Origin/etc., trust it entirely and skip CDN guessing.
+    if (extensionHeaders.isNotEmpty()) {
+        Log.d(PLAYER_TAG, "buildStreamHeaders: using extension-provided headers (${extensionHeaders.size} entries)")
+        val headers = mutableMapOf(
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Accept" to "*/*",
+            "Accept-Language" to "en-US,en;q=0.9"
+        )
+        headers.putAll(extensionHeaders)
+        for ((k, v) in headers) {
+            Log.d(PLAYER_TAG, "  $k: $v")
+        }
+        return headers
+    }
+
     val isVidloveProxy = rawUrl.contains("vidlove") || rawUrl.contains("player.vidlove")
     val hasHeadersParam = try {
         val uri = Uri.parse(rawUrl)
         !(uri.getQueryParameter("headers").isNullOrBlank())
     } catch (_: Exception) { false }
 
+    Log.d(PLAYER_TAG, "buildStreamHeaders: isVidloveProxy=$isVidloveProxy hasHeadersParam=$hasHeadersParam")
+
     if (isVidloveProxy || hasHeadersParam) {
-        Log.d(PLAYER_TAG, "buildStreamHandler: using proxy headers for $rawUrl")
+        Log.d(PLAYER_TAG, "buildStreamHeaders: using PROXY headers (vidlove detection)")
         return buildProxyHeaders(rawUrl)
     }
 
@@ -161,23 +182,24 @@ private fun buildStreamHeaders(rawUrl: String): Map<String, String> {
     // match the embedding site.
     val referer = when {
         rawUrl.contains("ironbubble") -> {
-            Log.d(PLAYER_TAG, "buildStreamHandler: matched ironbubble for url=$rawUrl")
+            Log.d(PLAYER_TAG, "buildStreamHeaders: matched CDN 'ironbubble'")
             "https://www.vidking.net/"
         }
         rawUrl.contains("uwucdn") -> {
-            Log.d(PLAYER_TAG, "buildStreamHandler: matched uwucdn for url=$rawUrl")
-            "https://www miruro.tv/"
+            Log.d(PLAYER_TAG, "buildStreamHeaders: matched CDN 'uwucdn'")
+            "https://www.miruro.tv/"
         }
         rawUrl.contains("megaplay") || rawUrl.contains("nekostream") -> {
-            Log.d(PLAYER_TAG, "buildStreamHandler: matched megaplay/nekostream for url=$rawUrl")
+            Log.d(PLAYER_TAG, "buildStreamHeaders: matched CDN 'megaplay/nekostream'")
             "https://megaplay.buzz/"
         }
         rawUrl.contains("waaw") || rawUrl.contains("cfglobalcdn") -> {
-            Log.d(PLAYER_TAG, "buildStreamHandler: matched waaw/cfglobalcdn for url=$rawUrl")
+            Log.d(PLAYER_TAG, "buildStreamHeaders: matched CDN 'waaw/cfglobalcdn'")
             "https://waaw.ac/"
         }
         else -> {
-            Log.d(PLAYER_TAG, "buildStreamHandler: no referer matched for url=$rawUrl")
+            Log.w(PLAYER_TAG, "buildStreamHeaders: NO CDN match for URL — no referer will be set")
+            Log.w(PLAYER_TAG, "buildStreamHeaders: extension should supply headers for this URL")
             null
         }
     }
@@ -191,7 +213,10 @@ private fun buildStreamHeaders(rawUrl: String): Map<String, String> {
         headers["Referer"] = referer
         headers["Origin"] = referer.trimEnd('/')
     }
-    Log.d(PLAYER_TAG, "buildStreamHandler: final headers ${headers.keys} for $rawUrl")
+    Log.d(PLAYER_TAG, "buildStreamHeaders: final headers for CDN/URL:")
+    for ((k, v) in headers) {
+        Log.d(PLAYER_TAG, "  $k: $v")
+    }
     return headers
 }
 
@@ -227,7 +252,8 @@ data class ServerEntry(
     val name: String,
     val url: String,
     val quality: String = "",
-    val error: String = ""
+    val error: String = "",
+    val extensionHeaders: Map<String, String> = emptyMap()
 )
 
 private fun parseServerEntries(json: String?): List<ServerEntry> {
@@ -247,10 +273,19 @@ private fun parseServerEntries(json: String?): List<ServerEntry> {
                     val sources = srv.optJSONArray("sources")
                     sources?.optJSONObject(0)?.optString("url", "") ?: ""
                 }
+            // Parse per-server extension headers
+            val hdrsObj = srv.optJSONObject("headers")
+            val extHeaders = if (hdrsObj != null) {
+                val map = mutableMapOf<String, String>()
+                for (h in hdrsObj.keys()) {
+                    map[h] = hdrsObj.optString(h, "")
+                }
+                map
+            } else emptyMap()
             if (url.isNotBlank()) {
-                ServerEntry(name = key, url = url, error = err)
+                ServerEntry(name = key, url = url, error = err, extensionHeaders = extHeaders)
             } else {
-                ServerEntry(name = key, url = "", error = err.ifBlank { "no stream URL" })
+                ServerEntry(name = key, url = "", error = err.ifBlank { "no stream URL" }, extensionHeaders = extHeaders)
             }
         }
     } catch (e: Exception) {
@@ -295,7 +330,14 @@ fun PlayerScreen(
     onProgressUpdate: (percentage: Int) -> Unit = {},
     onPreviousEpisode: (() -> Unit)? = null,
     onNextEpisode: (() -> Unit)? = null,
-    onPlaybackError: (() -> Unit)? = null,
+    /**
+     * Called when the player hits a PlaybackException. The host should try
+     * the next available server (or re-fetch from the extension) and update
+     * [videoUrl]. Return true if a new URL was set and the player should
+     * auto-retry, false if no more servers are available (the player will
+     * then show the hard error UI).
+     */
+    onPlaybackError: (() -> Boolean)? = null,
     onServerChange: ((serverUrl: String) -> Unit)? = null,
     onClose: () -> Unit,
     isSeries: Boolean = false
@@ -443,21 +485,36 @@ fun PlayerScreen(
                     }
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        Log.e(PLAYER_TAG, "ExoPlayer error (retryCount=$errorRetryCount)", error)
+                        Log.e(PLAYER_TAG, "===== ExoPlayer onPlayerError FIRED =====")
+                        Log.e(PLAYER_TAG, "ExoPlayer error (retryCount=$errorRetryCount): ${error.errorCodeName} (${error.errorCode})")
+                        Log.e(PLAYER_TAG, "ExoPlayer error message: ${error.message}")
+                        Log.e(PLAYER_TAG, "ExoPlayer error: ${error.javaClass.simpleName}")
                         // Log the root cause for debugging
                         var cause = error.cause
+                        var depth = 0
                         while (cause != null) {
-                            Log.e(PLAYER_TAG, "  caused by: ${cause::class.java.name}: ${cause.message}")
+                            Log.e(PLAYER_TAG, "  cause[$depth]: ${cause::class.java.name}: ${cause.message}")
+                            if (cause is java.io.IOException) {
+                                Log.e(PLAYER_TAG, "  IOException details: ${cause.javaClass.simpleName}")
+                            }
                             cause = cause.cause
+                            depth++
                         }
 
-                        // Only auto-retry once; if it fails again, show the error UI.
-                        if (errorRetryCount < 1) {
+                        // Ask the host to switch to the next server. If the
+                        // host returns true, a new videoUrl has been set and
+                        // the player will auto-retry via the LaunchedEffect
+                        // below. If false, no more servers are available —
+                        // show the hard error UI.
+                        val switched = onPlaybackError?.invoke() ?: false
+                        Log.d(PLAYER_TAG, "onPlayerError: onPlaybackError returned $switched")
+                        if (switched) {
                             errorRetryCount++
-                            Log.d(PLAYER_TAG, "auto-retrying playback (attempt ${errorRetryCount + 1})")
-                            onPlaybackError?.invoke()
+                            Log.d(PLAYER_TAG, "host switched to next server, auto-retrying (attempt ${errorRetryCount + 1})")
+                            // Don't show error UI — LaunchedEffect(videoUrl)
+                            // will fire when the host updates currentVideoUrl.
                         } else {
-                            Log.d(PLAYER_TAG, "max retries reached, showing error UI")
+                            Log.d(PLAYER_TAG, "no more servers to try, showing error UI")
                             hasError = true
                             playbackError = error.message ?: "Unknown playback error"
                             showControls = true
@@ -527,11 +584,22 @@ fun PlayerScreen(
     LaunchedEffect(videoUrl) {
         // While the extension is resolving the stream URL, videoUrl will be
         // blank — don't feed an empty URI to ExoPlayer.
-        if (videoUrl.isBlank()) return@LaunchedEffect
-        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): preparing player")
+        if (videoUrl.isBlank()) {
+            Log.w(PLAYER_TAG, "LaunchedEffect(videoUrl): videoUrl is BLANK, skipping")
+            return@LaunchedEffect
+        }
+        Log.d(PLAYER_TAG, "===== LaunchedEffect(videoUrl) START =====")
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): preparing player for URL: $videoUrl")
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): URL length=${videoUrl.length}")
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): savedPosition=$savedPosition")
 
+        // Reset error state for the new URL — either the user picked a
+        // different server manually, or onPlaybackError switched to the
+        // next server automatically. Either way, give the new URL a
+        // clean slate.
         hasError = false
         playbackError = null
+        errorRetryCount = 0
         hasRestoredPosition = false
         isBuffering = true
         hasPlaybackStarted = false
@@ -541,24 +609,37 @@ fun PlayerScreen(
         // Update the DataSource factory's headers for this specific URL.
         // The factory is mutable — calling setDefaultRequestProperties again
         // replaces the old ones for all subsequent requests (manifest + segments).
-        val headers = buildStreamHeaders(videoUrl)
+        val matchedEntry = serverEntries.firstOrNull { it.url == videoUrl }
+        val extHeaders = matchedEntry?.extensionHeaders ?: emptyMap()
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): matched server entry: ${matchedEntry?.name} extHeaders=$extHeaders")
+        val headers = buildStreamHeaders(videoUrl, extHeaders)
         val userAgent = headers["User-Agent"]
             ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-        Log.d(PLAYER_TAG, "updating factory headers: ${headers.keys}")
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): final headers:")
+        for ((k, v) in headers) {
+            Log.d(PLAYER_TAG, "  $k: $v")
+        }
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): setting factory headers: ${headers.keys}")
         dataSourceFactoryRef
             .setUserAgent(userAgent)
             .setDefaultRequestProperties(headers)
 
         // Use the full URL as-is — the ?headers=... param must stay on the
         // URL because the proxy reads it to know what headers to send upstream.
-        Log.d(PLAYER_TAG, "setting media item: $videoUrl")
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): setting media item on ExoPlayer...")
 
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(videoUrl)
 
-        exoPlayer.setMediaItem(mediaItemBuilder.build())
+        val mediaItem = mediaItemBuilder.build()
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): mediaItem URI=${mediaItem.localConfiguration?.uri}")
+
+        exoPlayer.setMediaItem(mediaItem)
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): calling exoPlayer.prepare()...")
         exoPlayer.prepare()
         exoPlayer.playWhenReady = savedPosition == 0L
+        Log.d(PLAYER_TAG, "LaunchedEffect(videoUrl): playWhenReady=${savedPosition == 0L}")
+        Log.d(PLAYER_TAG, "===== LaunchedEffect(videoUrl) END =====")
 
         hasTriggeredProgressUpdate = false
         currentPosition = 0L
@@ -830,8 +911,11 @@ fun PlayerScreen(
                                 }
                             }
 
-                            // Server selector button
-                            if (serverEntries.size > 1) {
+                            // Server selector button — show whenever we have
+                            // any server info (even a single server, so the
+                            // user can see which one is active and what
+                            // failed).
+                            if (serverEntries.isNotEmpty()) {
                                 Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.Center) {
                                     IconButton(
                                         onClick = { showServerMenu = !showServerMenu },
