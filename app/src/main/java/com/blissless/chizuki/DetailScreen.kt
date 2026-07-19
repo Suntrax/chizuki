@@ -275,7 +275,7 @@ fun DetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(2f / 3f)
+                    .height(240.dp)
             ) {
                 AndroidView(
                     factory = { ctx ->
@@ -541,7 +541,7 @@ fun DetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (isSeries) "Continue Watching" else "Play",
+                                text = if (isSeries) "Play Episode" else "Play",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
@@ -587,22 +587,24 @@ fun DetailScreen(
                                 }
                             }
 
-                            Button(
-                                onClick = { showEpisodeSelector = true },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(44.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkElevated),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.Bookmark,
-                                    contentDescription = null,
-                                    tint = SilverLight,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Episodes", color = SilverLight, fontSize = 13.sp)
+                            if (isSeries) {
+                                Button(
+                                    onClick = { showEpisodeSelector = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = DarkElevated),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Bookmark,
+                                        contentDescription = null,
+                                        tint = SilverLight,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Episodes", color = SilverLight, fontSize = 13.sp)
+                                }
                             }
                         }
                     }

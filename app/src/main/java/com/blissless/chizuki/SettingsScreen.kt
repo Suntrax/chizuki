@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -54,6 +55,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val checkUpdatesOnStart by viewModel.checkUpdatesOnStart.collectAsState()
     val extensions by viewModel.installedExtensions.collectAsState()
     val selectedAuthority by viewModel.selectedExtensionAuthority.collectAsState()
+    val streamingMethod by viewModel.streamingMethod.collectAsState()
     val pendingUpdate by viewModel.pendingUpdate.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
     val currentVersion by viewModel.currentVersionName.collectAsState()
@@ -171,6 +173,49 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     showExtensionsDialog = true
                 }
             )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        SettingsSectionHeader("Streaming")
+        SettingsCard {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Streaming Method", color = Silver, fontSize = 15.sp)
+                        Text(
+                            if (streamingMethod == SettingsManager.STREAMING_METHOD_IFRAME) "Iframe (WebView)" else "ExoPlayer (Default)",
+                            color = SilverDark,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                SettingsDivider()
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StreamingMethodChip(
+                        label = "ExoPlayer",
+                        selected = streamingMethod == SettingsManager.STREAMING_METHOD_EXOPLAYER,
+                        onClick = { viewModel.setStreamingMethod(SettingsManager.STREAMING_METHOD_EXOPLAYER) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    StreamingMethodChip(
+                        label = "Iframe",
+                        selected = streamingMethod == SettingsManager.STREAMING_METHOD_IFRAME,
+                        onClick = { viewModel.setStreamingMethod(SettingsManager.STREAMING_METHOD_IFRAME) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -371,6 +416,52 @@ private fun SettingsNavItem(
                 contentDescription = null,
                 tint = SilverDark,
                 modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StreamingMethodChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (selected) BlueAccent.copy(alpha = 0.2f)
+                else DarkSurfaceVariant
+            )
+            .border(
+                width = if (selected) 1.5.dp else 0.5.dp,
+                color = if (selected) BlueAccent else GlassStroke,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = BlueAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                text = label,
+                color = if (selected) BlueAccent else SilverDark,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
             )
         }
     }

@@ -10,6 +10,7 @@ import android.content.SharedPreferences
  *   - check_updates_on_start  (Boolean, default true)  — silent GitHub release check on app launch
  *   - selected_extension_authority (String?, default null) — ContentProvider authority of the
  *                                                             currently-active streaming extension
+ *   - streaming_method (String, default "exoplayer") — "exoplayer" or "iframe"
  */
 class SettingsManager(context: Context) {
 
@@ -20,8 +21,11 @@ class SettingsManager(context: Context) {
         private const val PREFS_NAME = "Chizuki_settings"
         private const val KEY_CHECK_UPDATES = "check_updates_on_start"
         private const val KEY_SELECTED_EXTENSION = "selected_extension_authority"
+        private const val KEY_STREAMING_METHOD = "streaming_method"
 
         private const val DEFAULT_CHECK_UPDATES = true
+        const val STREAMING_METHOD_EXOPLAYER = "exoplayer"
+        const val STREAMING_METHOD_IFRAME = "iframe"
     }
 
     fun getCheckUpdatesOnStart(): Boolean =
@@ -36,5 +40,13 @@ class SettingsManager(context: Context) {
 
     fun setSelectedExtensionAuthority(authority: String?) {
         prefs.edit().putString(KEY_SELECTED_EXTENSION, authority).apply()
+    }
+
+    fun getStreamingMethod(): String =
+        prefs.getString(KEY_STREAMING_METHOD, STREAMING_METHOD_EXOPLAYER)
+            ?: STREAMING_METHOD_EXOPLAYER
+
+    fun setStreamingMethod(method: String) {
+        prefs.edit().putString(KEY_STREAMING_METHOD, method).apply()
     }
 }

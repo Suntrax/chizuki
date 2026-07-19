@@ -129,6 +129,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedExtensionAuthority = MutableStateFlow(settingsManager.getSelectedExtensionAuthority())
     val selectedExtensionAuthority: StateFlow<String?> = _selectedExtensionAuthority.asStateFlow()
 
+    private val _streamingMethod = MutableStateFlow(settingsManager.getStreamingMethod())
+    val streamingMethod: StateFlow<String> = _streamingMethod.asStateFlow()
+
     private val _pendingUpdate = MutableStateFlow<GitHubRelease?>(null)
     val pendingUpdate: StateFlow<GitHubRelease?> = _pendingUpdate.asStateFlow()
 
@@ -157,6 +160,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settingsManager.setSelectedExtensionAuthority(authority)
         _selectedExtensionAuthority.value = authority
         android.util.Log.d("Chizuki/ViewModel", "selectExtension: saved to prefs, stateFlow now = ${_selectedExtensionAuthority.value}")
+    }
+
+    fun setStreamingMethod(method: String) {
+        settingsManager.setStreamingMethod(method)
+        _streamingMethod.value = method
     }
 
     /**

@@ -231,6 +231,8 @@ fun ChizukiApp(viewModel: MainViewModel) {
     var savedPosition by remember { mutableLongStateOf(0L) }
     var contentDetails by remember { mutableStateOf<ContentDetails?>(null) }
 
+    val streamingMethod by viewModel.streamingMethod.collectAsState()
+
     val context = LocalContext.current
     val activity = context as? MainActivity
     val focusManager = LocalFocusManager.current
@@ -299,6 +301,22 @@ fun ChizukiApp(viewModel: MainViewModel) {
         currentServerIndex = 0
         isPlayerActive = true
         val item = currentContent!!
+        if (viewModel.streamingMethod.value == SettingsManager.STREAMING_METHOD_IFRAME) {
+            val continueList = getContinueWatchingList().toMutableList()
+            val planningList = getPlanningToWatchList().toMutableList()
+            val completedList = getCompletedList().toMutableList()
+            continueList.removeAll { it.id == item.id && it.type == item.type }
+            continueList.add(0, item.copy(
+                progressSeason = currentSeason,
+                progressEpisode = currentEpisode
+            ))
+            planningList.removeAll { it.id == item.id && it.type == item.type }
+            completedList.removeAll { it.id == item.id && it.type == item.type }
+            saveContinueWatchingList(continueList)
+            savePlanningToWatchList(planningList)
+            saveCompletedList(completedList)
+            listRefreshKey++
+        }
         android.util.Log.d("Chizuki", "===== onPlayContent START =====")
         android.util.Log.d("Chizuki", "onPlayContent: item='${item.name}' type=${item.type} id=${item.id}")
         android.util.Log.d("Chizuki", "onPlayContent: currentSeason=$currentSeason currentEpisode=$currentEpisode")
@@ -477,6 +495,116 @@ fun ChizukiApp(viewModel: MainViewModel) {
             val currentSeasonInfo = seasons.find { it.seasonNumber == currentSeason }
             val episodesInCurrentSeason = currentSeasonInfo?.episodeCount ?: totalEpisodes.coerceAtLeast(1)
 
+            if (streamingMethod == SettingsManager.STREAMING_METHOD_IFRAME && currentVideoUrl != null) {
+                IframePlayerScreen(
+                    videoUrl = currentVideoUrl!!,
+                    isSeries = isSeries,
+                    currentSeason = currentSeason,
+                    currentEpisode = currentEpisode,
+                    totalEpisodes = episodesInCurrentSeason,
+                    maxSeason = maxSeason,
+                    animeName = currentContent?.name ?: "",
+                    savedPosition = savedPosition,
+                    onNextEpisode = {
+                        val seasons = contentDetails?.seasons ?: emptyList()
+                        val curSeasonInfo = seasons.find { it.seasonNumber == currentSeason }
+                        val epInCurSeason = curSeasonInfo?.episodeCount ?: 24
+                        val max = seasons.maxOfOrNull { it.seasonNumber } ?: 1
+
+                        val oldSeason = currentSeason
+                        val oldEpisode = currentEpisode
+                        if (currentEpisode < epInCurSeason) {
+                            currentEpisode++
+                        } else if (currentSeason < max) {
+                            currentSeason++
+                            currentEpisode = 1
+                        }
+                        android.util.Log.d("Chizuki", "Iframe onNextEpisode: S${oldSeason}E${oldEpisode} -> S${currentSeason}E${currentEpisode}")
+                        currentVideoUrl = null
+                        val item = currentContent ?: return@IframePlayerScreen
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val url = viewModel.fetchStreamUrl(
+                                title = item.name,
+                                tmdbId = item.id,
+                                mediaType = item.type,
+                                season = if (item.type == "tv") currentSeason else null,
+                                episode = if (item.type == "tv") currentEpisode else null
+                            )
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                currentVideoUrl = url?.primaryUrl
+                                if (url == null) {
+                                    Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    },
+                    onPreviousEpisode = {
+                        val seasons = contentDetails?.seasons ?: emptyList()
+                        val curSeasonInfo = seasons.find { it.seasonNumber == currentSeason }
+                        val epInCurSeason = curSeasonInfo?.episodeCount ?: 24
+
+                        val oldSeason = currentSeason
+                        val oldEpisode = currentEpisode
+                        if (currentEpisode > 1) {
+                            currentEpisode--
+                        } else if (currentSeason > 1) {
+                            currentSeason--
+                            val prevSeasonInfo = seasons.find { it.seasonNumber == currentSeason }
+                            currentEpisode = prevSeasonInfo?.episodeCount ?: 24
+                        }
+                        android.util.Log.d("Chizuki", "Iframe onPreviousEpisode: S${oldSeason}E${oldEpisode} -> S${currentSeason}E${currentEpisode}")
+                        currentVideoUrl = null
+                        val item = currentContent ?: return@IframePlayerScreen
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val url = viewModel.fetchStreamUrl(
+                                title = item.name,
+                                tmdbId = item.id,
+                                mediaType = item.type,
+                                season = if (item.type == "tv") currentSeason else null,
+                                episode = if (item.type == "tv") currentEpisode else null
+                            )
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                currentVideoUrl = url?.primaryUrl
+                                if (url == null) {
+                                    Toast.makeText(context, "No stream available.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    },
+                    onSavePosition = { position, dur ->
+                        currentContent?.let { item ->
+                            val continueList = getContinueWatchingList().toMutableList()
+                            val index = continueList.indexOfFirst { it.id == item.id && it.type == item.type }
+                            val existingItem = continueList.getOrNull(index)
+                            val existingDuration = existingItem?.progressDuration ?: 0L
+                            val actualDuration = if (dur > 0) dur else existingDuration
+
+                            if (index != -1) {
+                                continueList[index] = continueList[index].copy(
+                                    progressPosition = position,
+                                    progressDuration = actualDuration,
+                                    progressSeason = currentSeason,
+                                    progressEpisode = currentEpisode
+                                )
+                            } else {
+                                continueList.add(0, item.copy(
+                                    progressPosition = position,
+                                    progressDuration = actualDuration,
+                                    progressSeason = currentSeason,
+                                    progressEpisode = currentEpisode
+                                ))
+                            }
+                            saveContinueWatchingList(continueList)
+                            listRefreshKey++
+                        }
+                    },
+                    onClose = {
+                        isPlayerActive = false
+                        currentVideoUrl = null
+                        streamResultJson = null
+                    }
+                )
+            } else {
             PlayerScreen(
                 videoUrl = currentVideoUrl ?: "",
                 streamResultJson = streamResultJson,
@@ -496,13 +624,14 @@ fun ChizukiApp(viewModel: MainViewModel) {
                 onSavePosition = { position, dur ->
                     currentContent?.let { item ->
                         val continueList = getContinueWatchingList().toMutableList()
+                        val planningList = getPlanningToWatchList().toMutableList()
+                        val completedList = getCompletedList().toMutableList()
                         val index = continueList.indexOfFirst { it.id == item.id && it.type == item.type }
                         val existingItem = continueList.getOrNull(index)
                         val existingDuration = existingItem?.progressDuration ?: 0L
                         val actualDuration = if (dur > 0) dur else existingDuration
 
                         if (index != -1) {
-                            // Update existing item
                             if (position > 0) {
                                 continueList[index] = continueList[index].copy(
                                     progressPosition = position,
@@ -512,7 +641,6 @@ fun ChizukiApp(viewModel: MainViewModel) {
                                 )
                             }
                         } else if (position > 0) {
-                            // Immediately add to Continue Watching on first position save
                             continueList.add(0, item.copy(
                                 progressPosition = position,
                                 progressDuration = actualDuration,
@@ -520,7 +648,11 @@ fun ChizukiApp(viewModel: MainViewModel) {
                                 progressEpisode = currentEpisode
                             ))
                         }
+                        planningList.removeAll { it.id == item.id && it.type == item.type }
+                        completedList.removeAll { it.id == item.id && it.type == item.type }
                         saveContinueWatchingList(continueList)
+                        savePlanningToWatchList(planningList)
+                        saveCompletedList(completedList)
                         listRefreshKey++
                     }
                 },
@@ -692,6 +824,7 @@ fun ChizukiApp(viewModel: MainViewModel) {
                     streamResultJson = null
                 }
             )
+            }
         }
 
         if (showSearchScreen) {
